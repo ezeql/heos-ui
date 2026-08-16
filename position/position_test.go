@@ -206,7 +206,8 @@ func TestUPnPReadsTheRendererPosition(t *testing.T) {
 	parsed, _ := url.Parse(base)
 
 	client := &http.Client{}
-	body, ok := soapPositionInfo(context.Background(), client, "http://"+parsed.Host)
+	body, ok := soapCall(context.Background(), client, "http://"+parsed.Host,
+		"GetPositionInfo", positionInfoBody)
 	if !ok {
 		t.Fatal("renderer did not answer")
 	}

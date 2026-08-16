@@ -1,0 +1,852 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark light">
+<title>heoscli</title>
+<style>
+  :root {
+    --bg: #0d0f13;
+    --surface: #161a21;
+    --surface-2: #1e232c;
+    --line: #2a313d;
+    --text: #e8ecf3;
+    --muted: #8b93a3;
+    --accent: #4ade80;
+    --accent-dim: #22c55e;
+    --danger: #f87171;
+    --radius: 14px;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f4f5f7;
+      --surface: #ffffff;
+      --surface-2: #eef0f4;
+      --line: #dfe3ea;
+      --text: #141821;
+      --muted: #626b7b;
+      --accent: #16a34a;
+      --accent-dim: #15803d;
+      --danger: #dc2626;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 24px 16px 48px;
+    background: var(--bg);
+    color: var(--text);
+    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 680px; margin: 0 auto; display: grid; gap: 16px; }
+
+  header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+  h1 { font-size: 17px; margin: 0; letter-spacing: -0.01em; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); display: inline-block; }
+  .dot.live { background: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
+  .conn { color: var(--muted); font-size: 13px; display: flex; align-items: center; gap: 7px; }
+
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; }
+
+  /* now playing */
+  .np { display: grid; grid-template-columns: 104px 1fr; gap: 16px; align-items: center; }
+  .art {
+    width: 104px; height: 104px; border-radius: 10px; object-fit: cover;
+    background: var(--surface-2); display: grid; place-items: center;
+    color: var(--muted); font-size: 30px; border: 1px solid var(--line);
+  }
+  .title { font-size: 17px; font-weight: 600; margin: 0 0 3px; letter-spacing: -0.01em; overflow-wrap: anywhere; }
+  .artist { color: var(--muted); margin: 0 0 2px; overflow-wrap: anywhere; }
+  .where { color: var(--muted); font-size: 13px; margin-top: 6px; }
+  /* The track inside a set: the one line the firmware can never give us. */
+  .cue { color: var(--accent, #4aa3ff); font-size: 14px; margin-top: 6px; overflow-wrap: anywhere; }
+
+  /* Taller hit area than it looks: 4px is impossible to grab on a phone.
+     The height is the whole 20px because box-sizing is border-box above, so
+     the visible track is what is left after the padding: 20 - 8 - 8 = 4px.
+     Setting height to 4 here would leave no content box at all and the fill,
+     being 100% of it, would vanish. */
+  .bar { height: 20px; background: var(--surface-2); border-radius: 99px; overflow: hidden; margin: 8px 0 2px; cursor: pointer; position: relative; padding: 8px 0; background-clip: content-box; touch-action: none; }
+  .bar > i { display: block; height: 100%; background: var(--accent); width: 0%; transition: width .9s linear; border-radius: 99px; }
+  /* While dragging, the fill has to track the finger with no easing at all. */
+  .bar.seeking > i { transition: none; }
+  .bar.seeking { background-color: color-mix(in srgb, var(--surface-2) 70%, var(--accent)); }
+  /* Dimmed while the position is our own estimate rather than the speaker's. */
+  .bar > i.est { background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 55%, var(--surface-2))); }
+  .times { display: flex; justify-content: space-between; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .remain { opacity: .65; }
+
+  /* controls */
+  .controls { display: flex; gap: 10px; align-items: center; justify-content: center; margin-top: 16px; }
+  button {
+    font: inherit; color: var(--text); background: var(--surface-2);
+    border: 1px solid var(--line); border-radius: 10px; padding: 9px 14px;
+    cursor: pointer; transition: background .12s, border-color .12s, transform .08s;
+  }
+  button:hover { background: color-mix(in srgb, var(--accent) 14%, var(--surface-2)); border-color: var(--accent); }
+  button:active { transform: scale(.97); }
+  button:disabled { opacity: .45; cursor: default; transform: none; }
+  .primary { background: var(--accent); color: #06210f; border-color: var(--accent); font-weight: 600; min-width: 74px; }
+  .primary:hover { background: var(--accent-dim); border-color: var(--accent-dim); }
+  @media (prefers-color-scheme: light) { .primary { color: #fff; } }
+
+  /* master volume */
+  .master { display: flex; align-items: center; gap: 12px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
+  .master input[type=range] { flex: 1; }
+  .master .vol-num { min-width: 30px; }
+  .mute { background: none; border: 1px solid var(--line); padding: 6px 10px; min-width: 40px; }
+  .mute.on { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 45%, var(--line)); }
+
+  /* speakers */
+  h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .09em; color: var(--muted); margin: 0 0 12px; font-weight: 600; }
+  .spk { display: grid; gap: 12px; }
+  .spk-row { display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; align-items: center; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+  .spk-row:last-child { border-bottom: 0; padding-bottom: 0; }
+  .spk-name { font-weight: 500; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  /* The name doubles as the control for picking where playback goes. */
+  .as-target { background: none; border: 0; padding: 0; font: inherit; color: inherit; cursor: pointer; text-align: left; }
+  .as-target:hover { color: var(--accent, #4aa3ff); }
+  .spk-row.target { border-left: 3px solid var(--accent, #4aa3ff); padding-left: 9px; }
+  .spk-row.target .spk-name { color: var(--accent, #4aa3ff); }
+  .tag { font-size: 11px; color: var(--muted); border: 1px solid var(--line); border-radius: 99px; padding: 1px 8px; }
+  .tag.on { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
+  .vol { grid-column: 1 / -1; display: flex; align-items: center; gap: 12px; }
+  input[type=range] { flex: 1; accent-color: var(--accent); height: 22px; }
+  .vol-num { color: var(--muted); font-size: 13px; min-width: 26px; text-align: right; font-variant-numeric: tabular-nums; }
+
+  /* play form */
+  form { display: flex; gap: 10px; }
+  input[type=text] {
+    flex: 1; font: inherit; color: var(--text); background: var(--bg);
+    border: 1px solid var(--line); border-radius: 10px; padding: 11px 13px; min-width: 0;
+  }
+  input[type=text]:focus { outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent); outline-offset: 1px; border-color: transparent; }
+  .hint { color: var(--muted); font-size: 12.5px; margin-top: 10px; }
+  .msg { margin-top: 12px; font-size: 13.5px; padding: 10px 12px; border-radius: 9px; display: none; overflow-wrap: anywhere; }
+  .msg.ok { display: block; background: color-mix(in srgb, var(--accent) 12%, transparent); border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); }
+  .msg.err { display: block; background: color-mix(in srgb, var(--danger) 12%, transparent); border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent); color: var(--danger); }
+  .tracks { margin: 8px 0 0; padding-left: 18px; color: var(--muted); font-size: 13px; max-height: 168px; overflow-y: auto; }
+  .row-actions { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+
+  /* playlists */
+  .pl-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+  .pl-head h2 { margin: 0; }
+  .pl-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+  .chip {
+    font: inherit; font-size: 13px; color: var(--text); background: var(--surface-2);
+    border: 1px solid var(--line); border-radius: 99px; padding: 5px 13px; cursor: pointer;
+  }
+  .chip.on { background: color-mix(in srgb, var(--accent) 18%, var(--surface-2)); border-color: var(--accent); }
+  .chip .n { color: var(--muted); margin-left: 6px; font-variant-numeric: tabular-nums; }
+  .pl-empty { color: var(--muted); font-size: 13.5px; }
+  .pl-items { display: grid; gap: 2px; margin: 4px 0 0; }
+  .pl-item { display: grid; grid-template-columns: auto 1fr auto auto; gap: 10px; align-items: center; padding: 7px 8px; border-radius: 8px; }
+  .pl-item:hover { background: var(--surface-2); }
+  .pl-num { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; min-width: 18px; text-align: right; }
+  .pl-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pl-title small { color: var(--muted); display: block; font-size: 12px; }
+  .pl-len { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .icon { background: none; border: 0; color: var(--muted); padding: 3px 6px; cursor: pointer; border-radius: 6px; font-size: 13px; }
+  .icon:hover { background: var(--line); color: var(--text); border-color: transparent; }
+  .pl-total { color: var(--muted); font-size: 12.5px; margin-top: 10px; }
+
+  /* account */
+  .acct-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+  .acct-head h2 { margin: 0; }
+  .acct-form { display: grid; gap: 10px; }
+  .acct-form .pair { display: flex; gap: 10px; flex-wrap: wrap; }
+  .acct-form input { flex: 1; min-width: 190px; }
+  input[type=password] {
+    font: inherit; color: var(--text); background: var(--bg);
+    border: 1px solid var(--line); border-radius: 10px; padding: 11px 13px;
+  }
+  input[type=password]:focus, input[type=email]:focus { outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent); outline-offset: 1px; border-color: transparent; }
+  input[type=email] {
+    font: inherit; color: var(--text); background: var(--bg);
+    border: 1px solid var(--line); border-radius: 10px; padding: 11px 13px;
+  }
+  .warn { color: var(--muted); font-size: 12.5px; border-left: 2px solid color-mix(in srgb, var(--danger) 50%, transparent); padding-left: 10px; }
+  .srcs { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+  .src { font-size: 12px; border: 1px solid var(--line); border-radius: 99px; padding: 3px 11px; color: var(--muted); }
+  .src.on { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
+
+  @media (max-width: 460px) {
+    .np { grid-template-columns: 1fr; }
+    .art { width: 100%; height: 190px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>heoscli</h1>
+    <span class="conn"><span class="dot" id="dot"></span><span id="conn">connecting…</span></span>
+  </header>
+
+  <section class="card">
+    <div class="np">
+      <div class="art" id="art">♪</div>
+      <div>
+        <p class="title" id="title">Nothing playing</p>
+        <p class="artist" id="artist"></p>
+        <p class="where" id="where"></p>
+        <p class="where" id="quality"></p>
+        <p class="cue" id="cue"></p>
+      </div>
+    </div>
+    <div class="bar" id="bar" title="Drag to move within the track"><i id="fill"></i></div>
+    <div class="times">
+      <span id="pos">0:00</span>
+      <span id="remain" class="remain"></span>
+      <span id="dur"></span>
+    </div>
+    <div class="controls">
+      <button id="prev" title="Previous">⏮</button>
+      <button class="primary" id="toggle">Play</button>
+      <button id="next" title="Next">⏭</button>
+      <button id="stop" title="Stop">⏹</button>
+      <button id="identify" title="Listen to what is playing and name it">Identify track</button>
+    </div>
+    <div class="master">
+      <button class="mute" id="mute" title="Mute">🔊</button>
+      <input type="range" id="masterVol" min="0" max="100" value="0" aria-label="Volume">
+      <span class="vol-num" id="masterNum">—</span>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Play a link</h2>
+    <form id="form">
+      <input type="text" id="url" placeholder="SoundCloud track or set, audio URL…" autocomplete="off" spellcheck="false">
+      <button class="primary" type="submit" id="go">Play</button>
+      <button type="button" id="save" title="Add to the selected playlist">＋</button>
+    </form>
+    <p class="hint">Single tracks and <code>/sets/</code> playlists. Long tracks stream through the local proxy, so leave this machine on.</p>
+    <div class="msg" id="msg"></div>
+  </section>
+
+  <section class="card">
+    <div class="pl-head">
+      <h2>Playlists</h2>
+      <button id="newList">New playlist</button>
+    </div>
+    <div class="pl-tabs" id="plTabs"></div>
+    <div id="plBody"></div>
+  </section>
+
+  <section class="card">
+    <h2>Speakers</h2>
+    <div class="spk" id="spk"></div>
+    <div class="row-actions">
+      <button id="groupAll">Group all</button>
+      <button id="ungroup">Ungroup</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="acct-head">
+      <h2>HEOS account</h2>
+      <span class="conn" id="acctState">…</span>
+    </div>
+    <div id="acctBody"></div>
+    <div class="srcs" id="srcs"></div>
+    <div class="msg" id="acctMsg"></div>
+  </section>
+
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let state = null;
+let busyVolume = 0;      // ignore polled values right after a drag
+let seekDrag = null;     // {duration} while the progress bar is being dragged
+let busySeek = 0;        // the speaker takes a moment to report the new position
+let pending = false;
+
+const fmt = (ms) => {
+  if (!ms && ms !== 0) return "";
+  const s = Math.floor(ms / 1000);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  return h ? `${h}:${String(m).padStart(2,"0")}:${String(sec).padStart(2,"0")}`
+           : `${m}:${String(sec).padStart(2,"0")}`;
+};
+
+async function api(path, body) {
+  const res = await fetch(path, body ? {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify(body),
+  } : undefined);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || res.statusText);
+  return data;
+}
+
+function renderNow(now, target) {
+  const playing = now.song || now.artist;
+  // For a URL stream the firmware only knows the literal "Url Stream", so show
+  // the real title we resolved when starting playback.
+  const title = (now.is_url_stream && now.known_title) ? now.known_title : now.song;
+  const artist = (now.is_url_stream) ? (now.known_artist || "") : (now.artist || "");
+  $("title").textContent = title || "Nothing playing";
+  $("artist").textContent = artist;
+  $("where").textContent = target ? `on ${target.label}` : "";
+  // Reported by the speaker's UPnP service; the HEOS protocol has no such field.
+  $("quality").textContent = now.quality || "";
+
+  // The firmware sends no artwork for a URL stream; use the one we resolved.
+  const image = now.image || (now.is_url_stream ? now.known_image : null);
+  const art = $("art");
+  if (image) {
+    if (art.tagName !== "IMG") {
+      const img = document.createElement("img");
+      img.className = "art"; img.id = "art"; img.alt = "";
+      art.replaceWith(img);
+    }
+    if ($("art").src !== image) $("art").src = image;
+  } else if (art.tagName === "IMG") {
+    const div = document.createElement("div");
+    div.className = "art"; div.id = "art"; div.textContent = "♪";
+    art.replaceWith(div);
+  }
+
+  if (now.duration) {
+    $("dur").textContent = fmt(now.duration);
+    // While dragging — and briefly after, until the speaker reports the new
+    // position — the polled value is stale and would yank the bar backwards.
+    if (!seekDrag && Date.now() - busySeek > 2000) {
+      const pct = Math.min(100, (now.position || 0) / now.duration * 100);
+      $("fill").style.width = `${pct}%`;
+      $("fill").classList.toggle("est", !!now.estimated);
+      // The speaker cannot time a URL stream, so that position is our estimate.
+      $("pos").textContent = fmt(now.position || 0) + (now.estimated ? " ~" : "");
+      $("remain").textContent = "-" + fmt(now.duration - (now.position || 0));
+    }
+  } else {
+    // Nothing we started and nothing the firmware can time.
+    $("fill").style.width = playing ? "100%" : "0%";
+    $("fill").classList.remove("est");
+    $("dur").textContent = "";
+    $("remain").textContent = "";
+    $("pos").textContent = playing ? "live stream" : "";
+  }
+}
+
+function renderMaster(target) {
+  if (!target) return;
+  const slider = $("masterVol");
+  const num = $("masterNum");
+  // Do not fight the user while they are dragging.
+  if (Date.now() - busyVolume > 1500 && target.volume !== null) {
+    slider.value = target.volume;
+    num.textContent = target.volume;
+  }
+  const mute = $("mute");
+  mute.textContent = target.muted ? "🔇" : "🔊";
+  mute.classList.toggle("on", !!target.muted);
+  mute.title = target.muted ? "Unmute" : "Mute";
+}
+
+function renderSpeakers(players, target) {
+  const box = $("spk");
+  box.innerHTML = "";
+  for (const p of players) {
+    const row = document.createElement("div");
+    row.className = "spk-row";
+    // With several ungrouped speakers there is no default, so the row is how
+    // you say which one the controls act on.
+    const isTarget = target && !target.is_group && target.id === p.id;
+    if (isTarget) row.classList.add("target");
+
+    const name = document.createElement("button");
+    name.className = "spk-name as-target";
+    name.textContent = p.name;
+    name.title = isTarget && target.pinned
+      ? "Playing here — click to go back to choosing automatically"
+      : "Play here";
+    name.addEventListener("click", async () => {
+      try {
+        // Clicking the pinned speaker again releases it.
+        const pin = isTarget && target.pinned ? null : String(p.id);
+        await api("/api/target", {player: pin});
+        flash(pin ? `Playing on ${p.name}` : "Choosing the speaker automatically", false);
+      } catch (e) { flash(e.message, true); }
+      refresh();
+    });
+    if (p.group) {
+      const tag = document.createElement("span");
+      tag.className = "tag" + (p.is_leader ? " on" : "");
+      tag.textContent = p.is_leader ? `${p.group} · leader` : p.group;
+      name.appendChild(tag);
+    }
+    const st = document.createElement("span");
+    st.className = "tag" + (p.state === "play" ? " on" : "");
+    st.textContent = p.state;
+
+    const vol = document.createElement("div");
+    vol.className = "vol";
+    const slider = document.createElement("input");
+    slider.type = "range"; slider.min = 0; slider.max = 100; slider.value = p.volume;
+    const num = document.createElement("span");
+    num.className = "vol-num"; num.textContent = p.volume;
+    slider.addEventListener("input", () => { num.textContent = slider.value; busyVolume = Date.now(); });
+    slider.addEventListener("change", async () => {
+      busyVolume = Date.now();
+      try { await api("/api/volume", {player: String(p.id), level: Number(slider.value)}); }
+      catch (e) { flash(e.message, true); }
+    });
+    const rowMute = document.createElement("button");
+    rowMute.className = "icon" + (p.muted ? " on" : "");
+    rowMute.textContent = p.muted ? "🔇" : "🔊";
+    rowMute.title = p.muted ? "Unmute" : "Mute";
+    rowMute.addEventListener("click", async () => {
+      try { await api("/api/mute", {player: String(p.id), state: "toggle"}); }
+      catch (e) { flash(e.message, true); }
+      refresh();
+    });
+
+    vol.append(rowMute, slider, num);
+
+    row.append(name, st, vol);
+    box.appendChild(row);
+  }
+}
+
+function flash(text, isError) {
+  const el = $("msg");
+  el.className = "msg " + (isError ? "err" : "ok");
+  el.textContent = text;
+}
+
+async function refresh() {
+  try {
+    const data = await api("/api/state");
+    state = data;
+    $("dot").className = "dot live";
+    $("conn").textContent = data.target ? data.target.label : "connected";
+    renderNow(data.now, data.target);
+    renderMaster(data.target);
+    // Skip re-rendering sliders while the user is dragging one.
+    if (Date.now() - busyVolume > 1500) renderSpeakers(data.players, data.target);
+    const playing = data.players.some(p => p.state === "play");
+    $("toggle").textContent = playing ? "Pause" : "Play";
+  } catch (e) {
+    $("dot").className = "dot";
+    $("conn").textContent = "disconnected";
+  }
+}
+
+// The master control acts on the group when there is one, so no player is named.
+$("masterVol").addEventListener("input", () => {
+  busyVolume = Date.now();
+  $("masterNum").textContent = $("masterVol").value;
+});
+$("masterVol").addEventListener("change", async () => {
+  busyVolume = Date.now();
+  try { await api("/api/volume", {level: Number($("masterVol").value)}); }
+  catch (e) { flash(e.message, true); }
+});
+$("mute").addEventListener("click", async () => {
+  try { await api("/api/mute", {state: "toggle"}); } catch (e) { flash(e.message, true); }
+  refresh();
+});
+
+$("toggle").addEventListener("click", async () => {
+  const playing = state && state.players.some(p => p.state === "play");
+  await api("/api/transport", {action: playing ? "pause" : "play"}).catch(e => flash(e.message, true));
+  refresh();
+});
+for (const [id, action] of [["prev","prev"], ["next","next"], ["stop","stop"]]) {
+  $(id).addEventListener("click", async () => {
+    await api("/api/transport", {action}).catch(e => flash(e.message, true));
+    refresh();
+  });
+}
+
+// Dragging the progress bar to move within the track. The HEOS protocol has no
+// seek command at all, so this goes out over the speaker's UPnP renderer, which
+// does advertise one. Pointer events rather than mouse ones: the page is meant
+// to work from a phone.
+function seekFraction(ev) {
+  const box = $("bar").getBoundingClientRect();
+  return Math.min(1, Math.max(0, (ev.clientX - box.left) / box.width));
+}
+
+function previewSeek(ev) {
+  if (!seekDrag) return;
+  const at = seekFraction(ev);
+  $("fill").style.width = `${at * 100}%`;
+  $("pos").textContent = fmt(at * seekDrag.duration);
+  $("remain").textContent = "-" + fmt(seekDrag.duration * (1 - at));
+}
+
+function endSeekDrag() {
+  seekDrag = null;
+  $("bar").classList.remove("seeking");
+}
+
+$("bar").addEventListener("pointerdown", (ev) => {
+  const duration = state && state.now ? state.now.duration : null;
+  // A live stream has no length, so there is nowhere to seek to.
+  if (!duration) return;
+  seekDrag = {duration};
+  $("bar").classList.add("seeking");
+  $("bar").setPointerCapture(ev.pointerId);
+  previewSeek(ev);
+});
+
+$("bar").addEventListener("pointermove", previewSeek);
+
+$("bar").addEventListener("pointerup", async (ev) => {
+  if (!seekDrag) return;
+  const position = Math.round(seekFraction(ev) * seekDrag.duration);
+  endSeekDrag();
+  busySeek = Date.now();
+  try {
+    await api("/api/seek", {position});
+    flash(`Moved to ${fmt(position)}`, false);
+  } catch (e) {
+    // Most likely the speaker is playing something it will not seek within.
+    busySeek = 0;
+    flash(e.message, true);
+  }
+  refresh();
+});
+
+$("bar").addEventListener("pointercancel", endSeekDrag);
+
+// Fetching a sample and looking it up takes a few seconds, so the button has to
+// show it is working: an unresponsive one reads as broken.
+$("identify").addEventListener("click", async () => {
+  const button = $("identify");
+  if (button.disabled) return;
+  button.disabled = true;
+  button.textContent = "Listening…";
+  try {
+    // Send the position the page is showing: it already accounts for the
+    // estimated clock, and re-deriving it server-side could disagree.
+    const at = state && state.now ? state.now.position : null;
+    const out = await api("/api/identify", at == null ? {} : {position: at});
+    if (out.found) {
+      $("cue").textContent = "♪ " + out.describe;
+      flash("Identified: " + out.describe, false);
+    } else {
+      $("cue").textContent = "";
+      flash("Could not identify this one — likely a transition or unreleased.", true);
+    }
+  } catch (e) {
+    flash(e.message, true);
+  } finally {
+    button.disabled = false;
+    button.textContent = "Identify track";
+  }
+});
+
+$("form").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  const url = $("url").value.trim();
+  if (!url || pending) return;
+  pending = true;
+  $("go").disabled = true;
+  $("go").textContent = "…";
+  flash("Resolving…", false);
+  try {
+    const res = await api("/api/play", {url});
+    let text = `${res.title}${res.artist ? " — " + res.artist : ""} → ${res.target} (${res.detail})`;
+    flash(text, false);
+    if (res.tracks && res.tracks.length) {
+      const ol = document.createElement("ol");
+      ol.className = "tracks";
+      for (const t of res.tracks) { const li = document.createElement("li"); li.textContent = t; ol.appendChild(li); }
+      $("msg").appendChild(ol);
+    }
+    $("url").value = "";
+  } catch (e) {
+    flash(e.message, true);
+  } finally {
+    pending = false;
+    $("go").disabled = false;
+    $("go").textContent = "Play";
+    refresh();
+  }
+});
+
+$("groupAll").addEventListener("click", async () => {
+  if (!state || state.players.length < 2) return;
+  const ids = state.players.map(p => p.id);
+  await api("/api/group", {action: "create", players: ids}).catch(e => flash(e.message, true));
+  refresh();
+});
+$("ungroup").addEventListener("click", async () => {
+  await api("/api/group", {action: "ungroup"}).catch(e => flash(e.message, true));
+  refresh();
+});
+
+
+// ----------------------------------------------------------------- playlists
+let playlists = [];
+let selected = null;   // name of the open playlist
+
+function renderPlaylists() {
+  const tabs = $("plTabs");
+  tabs.innerHTML = "";
+  for (const pl of playlists) {
+    const chip = document.createElement("button");
+    chip.className = "chip" + (pl.name === selected ? " on" : "");
+    chip.innerHTML = `${escapeHtml(pl.name)}<span class="n">${pl.items.length}</span>`;
+    chip.addEventListener("click", () => {
+      selected = (selected === pl.name) ? null : pl.name;
+      renderPlaylists();
+    });
+    tabs.appendChild(chip);
+  }
+
+  const body = $("plBody");
+  body.innerHTML = "";
+  if (!playlists.length) {
+    body.innerHTML = `<p class="pl-empty">No playlists yet. Create one, then use ＋ to add whatever is in the box above.</p>`;
+    return;
+  }
+  const pl = playlists.find(p => p.name === selected);
+  if (!pl) {
+    body.innerHTML = `<p class="pl-empty">Pick a playlist to see its tracks.</p>`;
+    return;
+  }
+
+  if (!pl.items.length) {
+    body.innerHTML = `<p class="pl-empty">Empty. Paste a link above and press ＋.</p>`;
+  } else {
+    const list = document.createElement("div");
+    list.className = "pl-items";
+    pl.items.forEach((item, index) => {
+      const row = document.createElement("div");
+      row.className = "pl-item";
+
+      const num = document.createElement("span");
+      num.className = "pl-num"; num.textContent = index + 1;
+
+      const title = document.createElement("div");
+      title.className = "pl-title";
+      title.textContent = item.title;
+      if (item.artist) {
+        const small = document.createElement("small");
+        small.textContent = item.artist;
+        title.appendChild(small);
+      }
+
+      const len = document.createElement("span");
+      len.className = "pl-len";
+      len.textContent = item.duration ? fmt(item.duration * 1000) : "";
+
+      const actions = document.createElement("span");
+      for (const [glyph, hint, fn] of [
+        ["↑", "Move up", () => move(pl.name, index, index - 1)],
+        ["↓", "Move down", () => move(pl.name, index, index + 1)],
+        ["✕", "Remove", () => removeItem(pl.name, index)],
+      ]) {
+        const b = document.createElement("button");
+        b.className = "icon"; b.textContent = glyph; b.title = hint;
+        b.addEventListener("click", fn);
+        actions.appendChild(b);
+      }
+
+      row.append(num, title, len, actions);
+      list.appendChild(row);
+    });
+    body.appendChild(list);
+
+    const total = document.createElement("p");
+    total.className = "pl-total";
+    total.textContent = `${pl.items.length} tracks · ${fmt(pl.duration * 1000)}`;
+    body.appendChild(total);
+  }
+
+  const actions = document.createElement("div");
+  actions.className = "row-actions";
+  const play = document.createElement("button");
+  play.className = "primary"; play.textContent = "Play";
+  play.disabled = !pl.items.length;
+  play.addEventListener("click", () => playPlaylist(pl.name, false));
+  const shuffle = document.createElement("button");
+  shuffle.textContent = "Shuffle";
+  shuffle.disabled = !pl.items.length;
+  shuffle.addEventListener("click", () => playPlaylist(pl.name, true));
+  const del = document.createElement("button");
+  del.textContent = "Delete";
+  del.addEventListener("click", async () => {
+    if (!confirm(`Delete "${pl.name}" and its ${pl.items.length} tracks?`)) return;
+    await api("/api/playlists/delete", {name: pl.name}).catch(e => flash(e.message, true));
+    selected = null;
+    await loadPlaylists();
+  });
+  actions.append(play, shuffle, del);
+  body.appendChild(actions);
+}
+
+function escapeHtml(text) {
+  const d = document.createElement("div");
+  d.textContent = text;
+  return d.innerHTML;
+}
+
+async function loadPlaylists() {
+  try {
+    playlists = (await api("/api/playlists")).playlists;
+    if (selected && !playlists.some(p => p.name === selected)) selected = null;
+    if (!selected && playlists.length === 1) selected = playlists[0].name;
+    renderPlaylists();
+  } catch (e) { /* the connection banner already says it */ }
+}
+
+async function move(name, index, to) {
+  if (to < 0) return;
+  await api("/api/playlists/move", {name, index, to}).catch(e => flash(e.message, true));
+  await loadPlaylists();
+}
+
+async function removeItem(name, index) {
+  await api("/api/playlists/remove", {name, index}).catch(e => flash(e.message, true));
+  await loadPlaylists();
+}
+
+async function playPlaylist(name, shuffle) {
+  flash("Queueing…", false);
+  try {
+    const res = await api("/api/playlists/play", {name, shuffle});
+    flash(`${res.title} → ${res.target} (${res.detail})`, false);
+  } catch (e) {
+    flash(e.message, true);
+  }
+  refresh();
+}
+
+$("newList").addEventListener("click", async () => {
+  const name = prompt("Playlist name");
+  if (!name) return;
+  try {
+    await api("/api/playlists/create", {name});
+    selected = name;
+    await loadPlaylists();
+  } catch (e) { flash(e.message, true); }
+});
+
+$("save").addEventListener("click", async () => {
+  const url = $("url").value.trim();
+  if (!url) { flash("Paste a link first.", true); return; }
+  if (!selected) { flash("Pick a playlist to add it to.", true); return; }
+  $("save").disabled = true;
+  flash("Resolving…", false);
+  try {
+    await api("/api/playlists/add", {name: selected, url});
+    flash(`Added to ${selected}.`, false);
+    $("url").value = "";
+    await loadPlaylists();
+  } catch (e) {
+    flash(e.message, true);
+  } finally {
+    $("save").disabled = false;
+  }
+});
+
+
+// ------------------------------------------------------------------ account
+let account = null;
+
+function renderAccount() {
+  const body = $("acctBody");
+  const srcs = $("srcs");
+  body.innerHTML = "";
+  srcs.innerHTML = "";
+  if (!account) { $("acctState").textContent = "…"; return; }
+
+  $("acctState").textContent = account.signed_in
+    ? `signed in as ${account.username}`
+    : "not signed in";
+
+  if (account.signed_in) {
+    const out = document.createElement("button");
+    out.textContent = "Sign out";
+    out.addEventListener("click", async () => {
+      try {
+        account = await api("/api/account/signout", {});
+        renderAccount();
+        acctFlash("Signed out.", false);
+      } catch (e) { acctFlash(e.message, true); }
+    });
+    body.appendChild(out);
+  } else {
+    // Signing in is what turns TIDAL and SoundCloud from listed to playable.
+    const form = document.createElement("form");
+    form.className = "acct-form";
+    form.innerHTML = `
+      <p class="pl-empty">Sign in to enable the streaming services linked to your
+      HEOS account — TIDAL and SoundCloud become playable from here.</p>
+      <div class="pair">
+        <input type="email" id="acctUser" placeholder="HEOS account email" autocomplete="username">
+        <input type="password" id="acctPass" placeholder="Password" autocomplete="current-password">
+        <button class="primary" type="submit" id="acctGo">Sign in</button>
+      </div>
+      <p class="warn">The HEOS protocol sends credentials in clear text over port
+      1255, and this page is served over plain HTTP on your network.</p>`;
+    form.addEventListener("submit", async (ev) => {
+      ev.preventDefault();
+      const username = $("acctUser").value.trim();
+      const password = $("acctPass").value;
+      if (!username || !password) { acctFlash("Email and password are both required.", true); return; }
+      $("acctGo").disabled = true;
+      acctFlash("Signing in…", false);
+      try {
+        account = await api("/api/account/signin", {username, password});
+        renderAccount();
+        const on = account.sources.filter(s => s.available).map(s => s.name);
+        acctFlash(
+          on.length ? `Signed in. Available: ${on.join(", ")}.`
+                    : "Signed in, but no streaming source came back available. Link them in the HEOS app.",
+          false);
+      } catch (e) {
+        acctFlash(e.message, true);
+      } finally {
+        const go = $("acctGo");
+        if (go) go.disabled = false;
+      }
+    });
+    body.appendChild(form);
+  }
+
+  for (const src of account.sources || []) {
+    const chip = document.createElement("span");
+    chip.className = "src" + (src.available ? " on" : "");
+    chip.textContent = src.available ? `${src.name} ✓` : src.name;
+    if (src.account) chip.title = src.account;
+    srcs.appendChild(chip);
+  }
+}
+
+function acctFlash(text, isError) {
+  const el = $("acctMsg");
+  el.className = "msg " + (isError ? "err" : "ok");
+  el.textContent = text;
+}
+
+async function loadAccount() {
+  try {
+    account = await api("/api/account");
+    renderAccount();
+  } catch (e) { /* the connection banner already says it */ }
+}
+
+
+// Initial load; the state then refreshes on a timer.
+loadAccount();
+loadPlaylists();
+
+refresh();
+setInterval(refresh, 2000);
+</script>
+</body>
+</html>

@@ -5,6 +5,7 @@ package position
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -21,12 +22,19 @@ const upnpPort = "60006"
 // is consulted first regardless.
 const defaultControlPath = "/upnp/control/renderer_dvc/AVTransport"
 
-const envelope = `<?xml version="1.0"?>` +
+const envelopeOpen = `<?xml version="1.0"?>` +
 	`<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" ` +
-	`s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"><s:Body>` +
-	`<u:GetPositionInfo xmlns:u="urn:schemas-upnp-org:service:AVTransport:1">` +
-	`<InstanceID>0</InstanceID></u:GetPositionInfo>` +
-	`</s:Body></s:Envelope>`
+	`s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"><s:Body>`
+
+const envelopeClose = `</s:Body></s:Envelope>`
+
+const positionInfoBody = `<u:GetPositionInfo xmlns:u="urn:schemas-upnp-org:service:AVTransport:1">` +
+	`<InstanceID>0</InstanceID></u:GetPositionInfo>`
+
+// Measured on a Denon Home 150: its AVTransport advertises seek modes
+// TRACK_NR and REL_TIME, so a position can be given as a wall-clock offset.
+const seekBody = `<u:Seek xmlns:u="urn:schemas-upnp-org:service:AVTransport:1">` +
+	`<InstanceID>0</InstanceID><Unit>REL_TIME</Unit><Target>%s</Target></u:Seek>`
 
 var (
 	controlURLPattern = regexp.MustCompile(`(?si)AVTransport:1</serviceType>.*?<controlURL>([^<]+)`)
@@ -46,21 +54,53 @@ func UPnP(ctx context.Context, host string, timeout time.Duration) (float64, boo
 
 	client := &http.Client{}
 	base := "http://" + net.JoinHostPort(host, upnpPort)
-	body, ok := soapPositionInfo(ctx, client, base)
+	body, ok := soapCall(ctx, client, base, "GetPositionInfo", positionInfoBody)
 	if !ok {
 		return 0, false
 	}
 	return parseRelTime(body)
 }
 
-func soapPositionInfo(ctx context.Context, client *http.Client, base string) (string, bool) {
+// Seek jumps to position seconds into the current track, reporting whether
+// the speaker took it. The HEOS protocol has no seek at all; the speaker's
+// UPnP renderer is the only route to moving within a track.
+func Seek(ctx context.Context, host string, seconds float64, timeout time.Duration) bool {
+	if h, _, err := net.SplitHostPort(host); err == nil {
+		host = h
+	}
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	client := &http.Client{}
+	base := "http://" + net.JoinHostPort(host, upnpPort)
+	body := fmt.Sprintf(seekBody, asClock(seconds))
+	answer, ok := soapCall(ctx, client, base, "Seek", body)
+	if !ok {
+		return false
+	}
+	// A SOAP fault comes back with status 200 and an error body, so a reply
+	// on its own does not mean the seek happened.
+	return !strings.Contains(answer, "UPnPError") && !strings.Contains(answer, "s:Fault")
+}
+
+// asClock renders seconds as h:mm:ss, which is what REL_TIME expects.
+func asClock(seconds float64) string {
+	total := int(seconds)
+	if total < 0 {
+		total = 0
+	}
+	return fmt.Sprintf("%d:%02d:%02d", total/3600, total/60%60, total%60)
+}
+
+func soapCall(ctx context.Context, client *http.Client, base, action, body string) (string, bool) {
 	url := base + controlPath(ctx, client, base)
-	request, err := http.NewRequestWithContext(ctx, http.MethodPost, url, strings.NewReader(envelope))
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, url,
+		strings.NewReader(envelopeOpen+body+envelopeClose))
 	if err != nil {
 		return "", false
 	}
 	request.Header.Set("Content-Type", `text/xml; charset="utf-8"`)
-	request.Header.Set("SOAPAction", `"urn:schemas-upnp-org:service:AVTransport:1#GetPositionInfo"`)
+	request.Header.Set("SOAPAction", `"urn:schemas-upnp-org:service:AVTransport:1#`+action+`"`)
 	response, err := client.Do(request)
 	if err != nil {
 		return "", false
