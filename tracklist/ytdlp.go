@@ -11,6 +11,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"os/exec"
 )
 
@@ -33,9 +34,15 @@ type mediaComment struct {
 type extractor func(ctx context.Context, spec string, withComments bool) (*mediaInfo, error)
 
 func ytdlpExtract(ctx context.Context, spec string, withComments bool) (*mediaInfo, error) {
-	binary, err := exec.LookPath("yt-dlp")
-	if err != nil {
-		return nil, fmt.Errorf("yt-dlp not installed: %w", err)
+	// HEOSCLI_YTDLP points at a specific binary, e.g. one inside a
+	// virtualenv; otherwise PATH decides.
+	binary := os.Getenv("HEOSCLI_YTDLP")
+	if binary == "" {
+		found, err := exec.LookPath("yt-dlp")
+		if err != nil {
+			return nil, fmt.Errorf("yt-dlp not installed: %w", err)
+		}
+		binary = found
 	}
 	args := []string{"--no-download", "--no-warnings", "-J"}
 	if withComments {

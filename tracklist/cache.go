@@ -37,14 +37,16 @@ const (
 	maxEntries = 200
 )
 
-// DefaultCachePath returns the shared heoscli cache location
-// (~/.config/heoscli/tracklists.json or the platform equivalent).
+// DefaultCachePath returns the shared heoscli cache location. Python heoscli
+// hardcodes ~/.config/heoscli on every platform (not the macOS Application
+// Support convention), and sharing the file matters more than the platform
+// convention does.
 func DefaultCachePath() string {
-	dir, err := os.UserConfigDir()
+	home, err := os.UserHomeDir()
 	if err != nil {
 		return filepath.Join(".", "tracklists.json")
 	}
-	return filepath.Join(dir, "heoscli", "tracklists.json")
+	return filepath.Join(home, ".config", "heoscli", "tracklists.json")
 }
 
 // CacheKey is the identity of a set, stable across the ways the same link

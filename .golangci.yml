@@ -34,10 +34,7 @@ linters:
         linters:
           - gosec
           - unparam
-      - path: internal/heostest/
-        linters:
-          - gosec
-      - path: examples/
+      - path: cmd/
         linters:
           - gosec
           - gocritic
