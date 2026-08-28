@@ -1,0 +1,37 @@
+# Hot reload for the web UI: air rebuilds and restarts cmd/ui on every change.
+# Run it with `make dev`.
+
+root = "."
+tmp_dir = "tmp"
+
+[build]
+  cmd = "go build -o ./tmp/ui ./cmd/ui"
+  bin = "./tmp/ui"
+
+  # .html is watched alongside .go because index.html is embedded with
+  # go:embed — editing the frontend needs the same rebuild the backend does.
+  include_ext = ["go", "html"]
+
+  exclude_dir = ["tmp", "dist", ".git", ".github"]
+
+  # Tests do not go into the binary, so a test edit is not a reason to
+  # restart the speaker connection.
+  exclude_regex = ["_test\\.go"]
+
+  # Editors save in bursts; one rebuild per burst is enough.
+  delay = 300
+
+  # false keeps the last working binary serving while a build is broken,
+  # which beats a dead port for as long as a syntax error takes to fix.
+  stop_on_error = false
+
+  # SIGINT rather than SIGKILL: cmd/ui listens for it and calls
+  # server.Shutdown, so port 8080 is free by the time the next build starts.
+  send_interrupt = true
+  kill_delay = "2s"
+
+[misc]
+  clean_on_exit = true
+
+[screen]
+  clear_on_rebuild = true
