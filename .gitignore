@@ -1,3 +1,5 @@
 coverage.out
 *.test
 dist/
+tmp/
+.DS_Store
