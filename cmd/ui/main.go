@@ -6,7 +6,8 @@
 //	ui [-host IP] [-port 8080]
 //
 // The HEOS host defaults to the one cached by heoscli in
-// ~/.config/heoscli/config.toml.
+// ~/.config/heoscli/config.toml, and when that one does not answer the
+// speaker is discovered on the local network instead.
 package main
 
 import (
@@ -17,55 +18,36 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
-	"path/filepath"
-	"regexp"
 	"time"
 
 	"github.com/ezeql/goheos"
 
+	"github.com/ezeql/heoscli-go/discovery"
 	"github.com/ezeql/heoscli-go/webui"
 )
 
-var configHostPattern = regexp.MustCompile(`(?m)^host\s*=\s*"([^"]+)"`)
-
-func configuredHost() string {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return ""
-	}
-	raw, err := os.ReadFile(filepath.Join(home, ".config", "heoscli", "config.toml"))
-	if err != nil {
-		return ""
-	}
-	if found := configHostPattern.FindSubmatch(raw); found != nil {
-		return string(found[1])
-	}
-	return ""
-}
-
 func main() {
-	host := flag.String("host", "", "HEOS device (default: the host cached by heoscli)")
+	hostFlag := flag.String("host", "", "HEOS device (default: the cached host, else discovered)")
 	port := flag.Int("port", 8080, "port to serve the UI on")
 	flag.Parse()
-	if *host == "" {
-		*host = configuredHost()
-	}
-	if *host == "" {
-		log.Fatal("no host: pass -host or run heoscli once so it caches one")
-	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 
+	host, err := discovery.Resolve(ctx, *hostFlag, log.Printf)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	logger := slog.New(slog.NewTextHandler(os.Stderr, nil))
-	heos, err := goheos.Connect(ctx, *host, goheos.WithAutoReconnect(time.Second, 0))
+	heos, err := goheos.Connect(ctx, host, goheos.WithAutoReconnect(time.Second, 0))
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer func() { _ = heos.Disconnect() }()
 
 	server := webui.New(heos, nil, logger)
-	fmt.Printf("heoscli ui (go) — http://localhost:%d — speaker %s\n", *port, *host)
+	fmt.Printf("heoscli ui (go) — http://localhost:%d — speaker %s\n", *port, host)
 	if err := server.Serve(ctx, fmt.Sprintf(":%d", *port)); err != nil {
 		log.Fatal(err)
 	}

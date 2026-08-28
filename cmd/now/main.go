@@ -7,8 +7,9 @@
 //	now [-host IP] [-player NAME] [-offset SECONDS] <link|file>
 //
 // The host defaults to the one cached by heoscli in
-// ~/.config/heoscli/config.toml. The spec is the set being played: a
-// SoundCloud link or a local tracklist file.
+// ~/.config/heoscli/config.toml, and when that one does not answer the
+// speaker is discovered on the local network instead. The spec is the set
+// being played: a SoundCloud link or a local tracklist file.
 package main
 
 import (
@@ -18,35 +19,15 @@ import (
 	"log"
 	"os"
 	"os/signal"
-	"path/filepath"
-	"regexp"
 	"strings"
 	"time"
 
 	"github.com/ezeql/goheos"
 
+	"github.com/ezeql/heoscli-go/discovery"
 	"github.com/ezeql/heoscli-go/position"
 	"github.com/ezeql/heoscli-go/tracklist"
 )
-
-var configHostPattern = regexp.MustCompile(`(?m)^host\s*=\s*"([^"]+)"`)
-
-// configuredHost reads the host heoscli already discovered, so the two tools
-// point at the same speaker without repeating flags.
-func configuredHost() string {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return ""
-	}
-	raw, err := os.ReadFile(filepath.Join(home, ".config", "heoscli", "config.toml"))
-	if err != nil {
-		return ""
-	}
-	if found := configHostPattern.FindSubmatch(raw); found != nil {
-		return string(found[1])
-	}
-	return ""
-}
 
 func clock(seconds float64) string {
 	total := int(seconds)
@@ -79,7 +60,7 @@ func pickPlayer(players map[int]*goheos.Player, name string) *goheos.Player {
 }
 
 func main() {
-	host := flag.String("host", "", "HEOS device (default: the host cached by heoscli)")
+	hostFlag := flag.String("host", "", "HEOS device (default: the cached host, else discovered)")
 	playerName := flag.String("player", "", "player name (default: the one playing)")
 	manualOffset := flag.Float64("offset", 0, "override the tracklist offset in seconds")
 	flag.Parse()
@@ -87,15 +68,14 @@ func main() {
 		log.Fatalf("usage: %s [-host IP] [-player NAME] [-offset S] <link|file>", os.Args[0])
 	}
 	spec := flag.Arg(0)
-	if *host == "" {
-		*host = configuredHost()
-	}
-	if *host == "" {
-		log.Fatal("no host: pass -host or run heoscli once so it caches one")
-	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
+
+	host, err := discovery.Resolve(ctx, *hostFlag, log.Printf)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	// The tracklist half.
 	found, offset := tracklist.Find(ctx, spec,
@@ -113,7 +93,7 @@ func main() {
 	fmt.Println()
 
 	// The speaker half.
-	c, err := goheos.Connect(ctx, *host, goheos.WithAutoReconnect(time.Second, 0))
+	c, err := goheos.Connect(ctx, host, goheos.WithAutoReconnect(time.Second, 0))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -148,7 +128,7 @@ func main() {
 			reportedMS = media.CurrentPosition
 			lastReport = media.CurrentPositionUpdated
 		}
-		seconds, estimated, ok := position.Current(ctx, reportedMS, playbackClock, *host, playing)
+		seconds, estimated, ok := position.Current(ctx, reportedMS, playbackClock, host, playing)
 		if ok {
 			at := seconds - offset
 			index := -1
