@@ -1,6 +1,6 @@
 module github.com/ezeql/heoscli-go
 
-go 1.25
+go 1.27.0
 
 replace github.com/ezeql/goheos => ../goheos
 
