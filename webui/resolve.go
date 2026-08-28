@@ -4,10 +4,11 @@ package webui
 //
 // The Python implementation resolves through yt-dlp as a library and streams
 // through a local proxy when the format does not fit the speaker. This port
-// covers the base routes only: a direct http(s) audio URL plays as-is, and
-// anything yt-dlp can resolve to one (SoundCloud tracks resolve to a
-// progressive MP3) plays directly too. The proxy — transcoding, live
-// streams, multi-track sets fed one by one — is deliberately not ported yet.
+// covers the base routes only: a direct http(s) audio URL plays as-is, a
+// SoundCloud link is resolved to its progressive MP3 by the Go client, and
+// anything else falls to yt-dlp when it is installed. The proxy —
+// transcoding, live streams, multi-track sets fed one by one — is
+// deliberately not ported yet.
 
 import (
 	"bytes"
@@ -19,7 +20,12 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+
+	"github.com/ezeql/heoscli-go/soundcloud"
 )
+
+// scClient is shared so the scraped client_id is paid for once per process.
+var scClient = soundcloud.New()
 
 // trackInfo is what playback needs to know about a resolved link.
 type trackInfo struct {
@@ -57,7 +63,47 @@ func resolveSpec(ctx context.Context, spec string) (*trackInfo, error) {
 		}
 		return &trackInfo{title: name, streamURL: spec}, nil
 	}
+	if soundcloud.Is(spec) {
+		info, err := soundcloudResolve(ctx, spec)
+		if err == nil {
+			return info, nil
+		}
+		// A playlist is a playlist however it is resolved; yt-dlp would only
+		// arrive at the same answer more slowly.
+		if errors.Is(err, soundcloud.ErrNotATrack) {
+			return nil, errors.New("that is a set/playlist; playing those needs the proxy, which this backend does not carry yet — play a single track")
+		}
+		// Otherwise yt-dlp gets a turn, but only if it is installed: its
+		// "not installed" would replace the real reason SoundCloud said no.
+		fallback, ytdlpErr := ytdlpResolve(ctx, spec)
+		if ytdlpErr != nil {
+			if errors.Is(err, soundcloud.ErrNoStream) {
+				return nil, errors.New("this track only offers a stream the speaker cannot fetch directly (hls)")
+			}
+			return nil, fmt.Errorf("could not resolve the link: %w", err)
+		}
+		return fallback, nil
+	}
 	return ytdlpResolve(ctx, spec)
+}
+
+// soundcloudResolve resolves a SoundCloud link without any binary installed.
+func soundcloudResolve(ctx context.Context, spec string) (*trackInfo, error) {
+	track, err := scClient.Resolve(ctx, spec)
+	if err != nil {
+		return nil, err
+	}
+	stream, err := scClient.StreamURL(ctx, track)
+	if err != nil {
+		return nil, err
+	}
+	return &trackInfo{
+		title:     track.Title,
+		artist:    track.Artist,
+		image:     track.Artwork,
+		duration:  track.Duration,
+		streamURL: stream,
+	}, nil
 }
 
 // ytdlpResolve asks yt-dlp for the direct audio URL and metadata. Prefers a

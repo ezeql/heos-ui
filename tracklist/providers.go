@@ -56,7 +56,7 @@ type options struct {
 func defaultsOptions() options {
 	return options{
 		calibrate: true,
-		extract:   ytdlpExtract,
+		extract:   defaultExtract,
 		logger:    slog.New(slog.DiscardHandler),
 	}
 }
