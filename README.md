@@ -131,3 +131,11 @@ A broken build leaves the last working binary serving, so the port stays up
 for as long as the syntax error takes to fix. Two things it does not cover:
 `../goheos` lives outside the repo, and air reads `.air.toml` only at
 startup — editing either means restarting `make dev` by hand.
+
+`go.mod` pins a published [goheos](https://github.com/ezeql/goheos). To build
+against a local checkout next to this repo instead, create a workspace, which
+git ignores:
+
+```sh
+go work init . ../goheos
+```
