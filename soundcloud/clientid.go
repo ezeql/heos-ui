@@ -102,10 +102,7 @@ func (c *Client) scrapeClientID(ctx context.Context) (string, error) {
 	// The id lives in one of the last bundles far more often than the first,
 	// so they are tried from the end.
 	for start := len(assets) - 1; start >= 0; start -= scrapeWidth {
-		end := start - scrapeWidth + 1
-		if end < 0 {
-			end = 0
-		}
+		end := max(start-scrapeWidth+1, 0)
 		if id := c.scanBundles(ctx, assets[end:start+1]); id != "" {
 			return id, nil
 		}
@@ -124,9 +121,7 @@ func (c *Client) scanBundles(ctx context.Context, assets []string) string {
 		wg    sync.WaitGroup
 	)
 	for _, asset := range assets {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			body, err := c.plainGet(ctx, asset)
 			if err != nil {
 				return
@@ -141,7 +136,7 @@ func (c *Client) scanBundles(ctx context.Context, assets []string) string {
 				cancel() // the others are reading megabytes for nothing now
 			}
 			mu.Unlock()
-		}()
+		})
 	}
 	wg.Wait()
 	return found

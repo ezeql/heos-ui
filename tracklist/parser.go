@@ -180,7 +180,7 @@ func tidy(cues []Cue, duration float64) []Cue {
 // parse was good enough to use belongs to the provider chain, not here.
 func ParseText(text, source, origin string, duration float64) Tracklist {
 	var cues []Cue
-	for _, rawLine := range strings.Split(text, "\n") {
+	for rawLine := range strings.SplitSeq(text, "\n") {
 		line := strings.TrimSpace(bullet.ReplaceAllString(rawLine, ""))
 		if line == "" {
 			continue

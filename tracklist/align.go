@@ -45,10 +45,7 @@ const (
 )
 
 func histogram(times []float64, duration float64) []float64 {
-	bins := int(duration/binSeconds) + 1
-	if bins < 1 {
-		bins = 1
-	}
+	bins := max(int(duration/binSeconds)+1, 1)
 	counts := make([]float64, bins)
 	for _, moment := range times {
 		if moment >= 0 && moment <= duration {

@@ -85,10 +85,7 @@ func Seek(ctx context.Context, host string, seconds float64, timeout time.Durati
 
 // asClock renders seconds as h:mm:ss, which is what REL_TIME expects.
 func asClock(seconds float64) string {
-	total := int(seconds)
-	if total < 0 {
-		total = 0
-	}
+	total := max(int(seconds), 0)
 	return fmt.Sprintf("%d:%02d:%02d", total/3600, total/60%60, total%60)
 }
 

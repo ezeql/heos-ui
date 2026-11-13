@@ -156,7 +156,7 @@ func joinSources(sources ...string) string {
 	var ordered []string
 	seen := map[string]bool{}
 	for _, source := range sources {
-		for _, name := range strings.Split(source, "+") {
+		for name := range strings.SplitSeq(source, "+") {
 			if name != "" && !seen[name] {
 				seen[name] = true
 				ordered = append(ordered, name)
