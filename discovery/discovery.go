@@ -128,9 +128,7 @@ func gather(ctx context.Context, sources []net.IP, probe func(context.Context, n
 		wg    sync.WaitGroup
 	)
 	for _, source := range sources {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			for _, host := range probe(ctx, source) {
 				mu.Lock()
 				if !seen[host] {
@@ -139,7 +137,7 @@ func gather(ctx context.Context, sources []net.IP, probe func(context.Context, n
 				}
 				mu.Unlock()
 			}
-		}()
+		})
 	}
 	wg.Wait()
 	return hosts
@@ -238,9 +236,7 @@ func scanSubnet(ctx context.Context, source net.IP) []string {
 			continue // ourselves
 		}
 		candidate := net.IPv4(v4[0], v4[1], v4[2], byte(last)).String()
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			slots <- struct{}{}
 			defer func() { <-slots }()
 			if !Reachable(ctx, candidate, sweepTimeout) {
@@ -249,7 +245,7 @@ func scanSubnet(ctx context.Context, source net.IP) []string {
 			mu.Lock()
 			hosts = append(hosts, candidate)
 			mu.Unlock()
-		}()
+		})
 	}
 	wg.Wait()
 	return hosts
@@ -261,14 +257,12 @@ func describeAll(ctx context.Context, hosts []string) []Device {
 	devices := make([]Device, len(hosts))
 	var wg sync.WaitGroup
 	for index, host := range hosts {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			device := Device{Host: host}
 			device.Reachable = Reachable(ctx, host, 2*time.Second)
 			device.Name, device.Model = describe(ctx, host)
 			devices[index] = device
-		}()
+		})
 	}
 	wg.Wait()
 

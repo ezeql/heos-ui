@@ -157,10 +157,7 @@ func (raw apiTrack) track() *Track {
 	// A preview shortens Duration while FullDuration keeps the real length;
 	// a tracklist lined up against the preview length would be wrong
 	// everywhere after the first cue.
-	milliseconds := raw.Duration
-	if raw.FullDuration > milliseconds {
-		milliseconds = raw.FullDuration
-	}
+	milliseconds := max(raw.FullDuration, raw.Duration)
 	artist := raw.PublisherMetadata.Artist
 	if artist == "" {
 		artist = raw.User.Username
@@ -339,8 +336,8 @@ func (c *Client) fetch(ctx context.Context, endpoint string, query url.Values, i
 
 // trimQuery keeps the client_id out of error messages.
 func trimQuery(endpoint string) string {
-	if cut := strings.IndexByte(endpoint, '?'); cut >= 0 {
-		return endpoint[:cut]
+	if before, _, ok := strings.Cut(endpoint, "?"); ok {
+		return before
 	}
 	return endpoint
 }
