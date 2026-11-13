@@ -4,8 +4,8 @@
 run:
 	go run ./cmd/ui
 
-# The app with hot reload, rebuilding on every .go/.html change. Note that
-# ../goheos lives outside this repo, so edits there still need a restart.
+# The app with hot reload, rebuilding on every .go/.html change. With a
+# go.work pointing at ../goheos, edits there still need a restart.
 dev:
 	@command -v air >/dev/null || { \
 		echo "air is not installed: go install github.com/air-verse/air@latest"; \
