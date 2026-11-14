@@ -205,9 +205,8 @@ func TestUPnPReadsTheRendererPosition(t *testing.T) {
 	base := fakeRenderer(t, "0:10:00")
 	parsed, _ := url.Parse(base)
 
-	client := &http.Client{}
-	body, ok := soapCall(context.Background(), client, "http://"+parsed.Host,
-		"GetPositionInfo", positionInfoBody)
+	body, ok := soapCall(context.Background(), "http://"+parsed.Host,
+		"GetPositionInfo", positionInfoBody, 5*time.Second)
 	if !ok {
 		t.Fatal("renderer did not answer")
 	}

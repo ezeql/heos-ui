@@ -46,15 +46,7 @@ var (
 // stopped renderer legitimately sits at zero, so zero comes back as unknown
 // and the caller falls back to its own clock, which is right in both cases.
 func UPnP(ctx context.Context, host string, timeout time.Duration) (float64, bool) {
-	if h, _, err := net.SplitHostPort(host); err == nil {
-		host = h
-	}
-	ctx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-
-	client := &http.Client{}
-	base := "http://" + net.JoinHostPort(host, upnpPort)
-	body, ok := soapCall(ctx, client, base, "GetPositionInfo", positionInfoBody)
+	body, ok := soapCall(ctx, rendererURL(host), "GetPositionInfo", positionInfoBody, timeout)
 	if !ok {
 		return 0, false
 	}
@@ -65,16 +57,8 @@ func UPnP(ctx context.Context, host string, timeout time.Duration) (float64, boo
 // the speaker took it. The HEOS protocol has no seek at all; the speaker's
 // UPnP renderer is the only route to moving within a track.
 func Seek(ctx context.Context, host string, seconds float64, timeout time.Duration) bool {
-	if h, _, err := net.SplitHostPort(host); err == nil {
-		host = h
-	}
-	ctx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-
-	client := &http.Client{}
-	base := "http://" + net.JoinHostPort(host, upnpPort)
 	body := fmt.Sprintf(seekBody, asClock(seconds))
-	answer, ok := soapCall(ctx, client, base, "Seek", body)
+	answer, ok := soapCall(ctx, rendererURL(host), "Seek", body, timeout)
 	if !ok {
 		return false
 	}
@@ -89,8 +73,21 @@ func asClock(seconds float64) string {
 	return fmt.Sprintf("%d:%02d:%02d", total/3600, total/60%60, total%60)
 }
 
-func soapCall(ctx context.Context, client *http.Client, base, action, body string) (string, bool) {
-	url := base + controlPath(ctx, client, base)
+// rendererURL is the speaker's UPnP base URL. Whatever port host carries
+// (the HEOS one, say), the renderer is on upnpPort.
+func rendererURL(host string) string {
+	if h, _, err := net.SplitHostPort(host); err == nil {
+		host = h
+	}
+	return "http://" + net.JoinHostPort(host, upnpPort)
+}
+
+// soapCall sends one AVTransport action to the renderer at base, with
+// timeout covering the description lookup and the call itself.
+func soapCall(ctx context.Context, base, action, body string, timeout time.Duration) (string, bool) {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	url := base + controlPath(ctx, base)
 	request, err := http.NewRequestWithContext(ctx, http.MethodPost, url,
 		strings.NewReader(envelopeOpen+body+envelopeClose))
 	if err != nil {
@@ -98,7 +95,7 @@ func soapCall(ctx context.Context, client *http.Client, base, action, body strin
 	}
 	request.Header.Set("Content-Type", `text/xml; charset="utf-8"`)
 	request.Header.Set("SOAPAction", `"urn:schemas-upnp-org:service:AVTransport:1#`+action+`"`)
-	response, err := client.Do(request)
+	response, err := http.DefaultClient.Do(request)
 	if err != nil {
 		return "", false
 	}
@@ -115,13 +112,13 @@ func soapCall(ctx context.Context, client *http.Client, base, action, body strin
 
 // controlPath reads the AVTransport control path from the device description,
 // falling back to the Denon default.
-func controlPath(ctx context.Context, client *http.Client, base string) string {
+func controlPath(ctx context.Context, base string) string {
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet,
 		base+"/upnp/desc/aios_device/aios_device.xml", nil)
 	if err != nil {
 		return defaultControlPath
 	}
-	response, err := client.Do(request)
+	response, err := http.DefaultClient.Do(request)
 	if err != nil {
 		return defaultControlPath
 	}
