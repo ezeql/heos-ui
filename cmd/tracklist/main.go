@@ -23,14 +23,6 @@ import (
 	"github.com/ezeql/heoscli-go/tracklist"
 )
 
-func clock(seconds float64) string {
-	total := int(seconds)
-	if total >= 3600 {
-		return fmt.Sprintf("%d:%02d:%02d", total/3600, total/60%60, total%60)
-	}
-	return fmt.Sprintf("%d:%02d", total/60, total%60)
-}
-
 func main() {
 	at := flag.String("at", "", "position to look up, as seconds or mm:ss / h:mm:ss")
 	refresh := flag.Bool("refresh", false, "bypass the cache read")
@@ -65,7 +57,7 @@ func main() {
 
 	fmt.Printf("source: %s", found.Source)
 	if found.Duration > 0 {
-		fmt.Printf("  duration: %s", clock(found.Duration))
+		fmt.Printf("  duration: %s", tracklist.FormatTimestamp(found.Duration))
 	}
 	if offset != 0 {
 		fmt.Printf("  offset: %+.0fs", offset)
@@ -73,7 +65,7 @@ func main() {
 	fmt.Printf("  cues: %d\n\n", found.Len())
 
 	for i, cue := range found.Cues {
-		fmt.Printf("%3d. %8s  %s\n", i+1, clock(cue.Start), cue.Describe())
+		fmt.Printf("%3d. %8s  %s\n", i+1, tracklist.FormatTimestamp(cue.Start), cue.Describe())
 	}
 
 	if *at == "" {
@@ -90,13 +82,13 @@ func main() {
 	state := found.At(position - offset)
 	fmt.Println()
 	if state == nil {
-		fmt.Printf("at %s: nothing yet (before the first cue)\n", clock(position))
+		fmt.Printf("at %s: nothing yet (before the first cue)\n", tracklist.FormatTimestamp(position))
 		return
 	}
-	fmt.Printf("at %s: [%d/%d] %s  (%s in", clock(position),
-		state.Index+1, state.Total, state.Current.Describe(), clock(state.Elapsed))
+	fmt.Printf("at %s: [%d/%d] %s  (%s in", tracklist.FormatTimestamp(position),
+		state.Index+1, state.Total, state.Current.Describe(), tracklist.FormatTimestamp(state.Elapsed))
 	if state.RemainingKnown {
-		fmt.Printf(", %s left", clock(state.Remaining))
+		fmt.Printf(", %s left", tracklist.FormatTimestamp(state.Remaining))
 	}
 	fmt.Println(")")
 	if state.Next != nil {
