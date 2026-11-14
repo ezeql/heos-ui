@@ -89,16 +89,6 @@ func Search(ctx context.Context, timeout time.Duration) []Device {
 	return describeAll(ctx, hosts)
 }
 
-// First is Search reduced to the single best answer, which is what a tool
-// picking a speaker on its own actually wants.
-func First(ctx context.Context, timeout time.Duration) (Device, bool) {
-	found := Search(ctx, timeout)
-	if len(found) == 0 {
-		return Device{}, false
-	}
-	return found[0], true
-}
-
 // Reachable reports whether a HEOS device is listening at host. The port is
 // the whole test: an address that does not accept a connection there cannot
 // be controlled, whatever else it answers.
