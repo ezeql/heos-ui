@@ -14,8 +14,6 @@ and maps a playback position to the track on right now.
 - **Parser** — cue points out of free text: descriptions, pasted lists. The
   central rule survives the port: a timestamp only counts when it opens the
   line, which is what keeps "recorded live at 2:00 AM" out.
-- **Merge** — folding newly identified cues into a tracklist, with source
-  names deduplicated (`soundcloud-comments+shazam`, never `shazam+shazam+…`).
 - **Providers** — local text file, SoundCloud description, SoundCloud timed
   comments, chained cheapest-and-most-trustworthy first. Nothing in the chain
   fails loudly: no tracklist is an answer, not an error.
@@ -35,7 +33,7 @@ yt-dlp reads the same fields from. See **Resolving links** below.
 
 - **Acoustic identification** (`acoustic.py`, Shazam sampling,
   `scan_audio`/`identify_playing`) — non-trivial; the `shazam` source name is
-  still honored when merging and in cached entries.
+  still honored in cached entries.
 - **1001tracklists scraping** (`scrape.py`) — needs browser cookies. The
   `Provider` interface is the extension point when it becomes worth it.
 - The CLI/TUI/web frontends: this is the backend only.

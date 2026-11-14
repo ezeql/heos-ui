@@ -12,10 +12,7 @@
 // seconds to a CueState.
 package tracklist
 
-import (
-	"sort"
-	"strings"
-)
+import "sort"
 
 // unknownMarkers is what a track called "ID" means: the set has it, nobody
 // has named it yet.
@@ -109,59 +106,4 @@ func (t *Tracklist) At(position float64) *CueState {
 		state.RemainingKnown = true
 	}
 	return state
-}
-
-// mergeWindow: two cues this close together are the same track change
-// described twice, not two records. Sampling lands within a couple of minutes
-// of the real boundary, so the window has to be generous.
-const mergeWindow = 90.0
-
-// Merge folds newly identified cues into a tracklist, keeping the better
-// source. base wins every collision: it came from someone naming the track,
-// which carries a precise timestamp, while an acoustic match is only known to
-// within one sampling interval.
-func Merge(base, extra Tracklist) Tracklist {
-	cues := append([]Cue(nil), base.Cues...)
-	for _, cue := range extra.Cues {
-		collides := false
-		for _, known := range cues {
-			if diff := cue.Start - known.Start; -mergeWindow < diff && diff < mergeWindow {
-				collides = true
-				break
-			}
-		}
-		if !collides {
-			cues = append(cues, cue)
-		}
-	}
-	sort.SliceStable(cues, func(i, j int) bool { return cues[i].Start < cues[j].Start })
-
-	duration := base.Duration
-	if duration == 0 {
-		duration = extra.Duration
-	}
-	return Tracklist{
-		Cues: cues,
-		// Deduplicated: identifying tracks one at a time merges repeatedly,
-		// and naively joining turned this into "shazam+shazam+shazam+…".
-		Source:   joinSources(base.Source, extra.Source),
-		Origin:   base.Origin,
-		Duration: duration,
-	}
-}
-
-// joinSources names every source that contributed, each once, in the order
-// they came.
-func joinSources(sources ...string) string {
-	var ordered []string
-	seen := map[string]bool{}
-	for _, source := range sources {
-		for name := range strings.SplitSeq(source, "+") {
-			if name != "" && !seen[name] {
-				seen[name] = true
-				ordered = append(ordered, name)
-			}
-		}
-	}
-	return strings.Join(ordered, "+")
 }
