@@ -1,14 +1,50 @@
 # heoscli-go
 
-Go port of [heoscli](../heoscli), starting with the **tracklist** backend:
-knowing which track of a DJ set is playing.
+Go port of [heoscli](https://github.com/ezeql/heoscli): a web UI for Denon/HEOS
+speakers, and knowing which track of a DJ set is playing. The speaker
+connection is [goheos](https://github.com/ezeql/goheos).
+
+## Commands
+
+| Command | What it does |
+|---|---|
+| `ui [-host IP] [-port 8080]` | The heoscli web UI (`make run`). See **Web UI**. |
+| `now [-host IP] [-player NAME] [-offset S] <link\|file>` | Which track of a set is playing on a speaker, live. |
+| `tracklist [-at 1:02:30] [-refresh] [-no-cache] [-v] <link\|file>` | Finds a tracklist for a set and, with `-at`, what plays at that position. |
+
+All three live under `cmd/`. `ui` and `now` need no IP address: the speaker is
+found on the network when none is cached (see **Finding the speaker**). For
+`now` and `tracklist`, the spec is a SoundCloud link or a local text file
+with a tracklist in it.
+
+## Web UI
+
+The same page, endpoints and response shapes as the Python web UI, served by
+the `webui` package over goheos instead of pyheos:
+
+- **Playback**: a direct http(s) audio URL plays as-is, a SoundCloud link is
+  resolved by the Go client, and anything else goes to yt-dlp if it is
+  installed. Then play, pause, stop, next and previous.
+- **Speakers**: pick the target, set the volume, mute, and group or ungroup.
+- **Position and seek**: the position comes from HEOS when it reports one,
+  from the speaker's UPnP renderer otherwise (it answers even for URL
+  streams), and from a clock started at play as the last resort. Seeking goes
+  over UPnP, because the HEOS protocol has no seek at all.
+- **Playlists**: heoscli's own lists of links, unrelated to HEOS playlists,
+  in `~/.config/heoscli/playlists.json`. Same file and schema as the Python
+  tool, so both can share it.
+- **HEOS account**: sign in and out.
+
+The server listens on every interface with no authentication: anyone on the
+local network can drive the speakers. Requests from other sites open in the
+same browser are rejected (403), so a web page you visit cannot.
+
+## Tracklists
 
 A set streamed through the proxy reaches the speaker as a single hour-long URL
 stream, so the firmware reports "Url Stream" and nothing else for the whole
-hour. This package finds a tracklist for the set, lines it up with the audio,
-and maps a playback position to the track on right now.
-
-## What is ported
+hour. The `tracklist` package finds a tracklist for the set, lines it up with
+the audio, and maps a playback position to the track on right now.
 
 - **Model** — `Cue`, `CueState`, `Tracklist.At(position)` (bisect lookup).
 - **Parser** — cue points out of free text: descriptions, pasted lists. The
@@ -29,16 +65,7 @@ SoundCloud metadata no longer needs a binary installed: the `soundcloud`
 package speaks the private API the web player itself uses, which is where
 yt-dlp reads the same fields from. See **Resolving links** below.
 
-## Deliberately not ported
-
-- **Acoustic identification** (`acoustic.py`, Shazam sampling,
-  `scan_audio`/`identify_playing`) — non-trivial; the `shazam` source name is
-  still honored in cached entries.
-- **1001tracklists scraping** (`scrape.py`) — needs browser cookies. The
-  `Provider` interface is the extension point when it becomes worth it.
-- The CLI/TUI/web frontends: this is the backend only.
-
-## Usage
+### Usage
 
 ```go
 cache := tracklist.NewCache("") // default: ~/.config/heoscli/tracklists.json
@@ -84,6 +111,22 @@ refuses it — that id rotates every few weeks, and being turned away is the
 only way to learn it has. **This is the part that can break without warning**,
 and it is why yt-dlp remains the fallback rather than being deleted.
 
+## Deliberately not ported
+
+- **Acoustic identification** (`acoustic.py`, Shazam sampling,
+  `scan_audio`/`identify_playing`) — non-trivial; the `shazam` source name is
+  still honored in cached entries. In the web UI, "identify" answers 501.
+- **1001tracklists scraping** (`scrape.py`) — needs browser cookies. The
+  `Provider` interface is the extension point when it becomes worth it.
+- **The streaming proxy**: transcoding, HLS, live streams, and feeding a
+  playlist one track after another. Without it the web UI only plays what the
+  speaker can fetch by itself, and "play" on a playlist plays its first
+  track.
+- **The audio quality line** in the web UI (the DIDL parse): it shows no line,
+  like a speaker that does not answer.
+- **The TUI and the rest of the Python CLI**: the commands here are the three
+  above.
+
 ## Finding the speaker
 
 No command needs an IP address. `discovery.Resolve` is what every one of them
@@ -113,14 +156,22 @@ named in the log, so `-host` is one copy-paste away.
 
 > On macOS the firewall must let the binary accept incoming connections, or
 > the SSDP replies never arrive and every search falls through to the sweep.
+> `go run` (and so `make run`) builds a new binary every time, which the
+> firewall has never approved. To test discovery itself, build to a fixed
+> path (`go build -o bin/ui ./cmd/ui`) and approve that one once.
 
 ## Development
 
 ```sh
 make run    # the web UI, discovering the speaker if none is cached
 make dev    # the same, rebuilt and restarted on every change (air)
-make lint   # golangci-lint v2 (incl. gofumpt)
+make test   # go test ./...
 make race   # tests with the race detector
+make lint   # golangci-lint v2 (CI pins v2.14)
+make fmt    # gofumpt + goimports
+make cover  # coverage, as CI measures it
+make vuln   # govulncheck
+make tidy   # go mod tidy, failing if go.mod changes
 ```
 
 `make dev` watches `.html` as well as `.go`, because `index.html` is embedded

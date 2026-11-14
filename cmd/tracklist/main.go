@@ -6,8 +6,9 @@
 //
 //	tracklist [-at 1:02:30] [-refresh] [-no-cache] [-v] <link|file>
 //
-// The spec is a SoundCloud link (needs yt-dlp on PATH, or HEOSCLI_YTDLP
-// pointing at the binary) or a local text file with a tracklist in it.
+// The spec is a SoundCloud link (resolved by the Go client, with yt-dlp as
+// the fallback when it is installed) or a local text file with a tracklist
+// in it.
 package main
 
 import (
