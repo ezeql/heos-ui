@@ -49,7 +49,8 @@ func ytdlpExtract(ctx context.Context, spec string, withComments bool) (*mediaIn
 	if withComments {
 		args = append(args, "--write-comments")
 	}
-	args = append(args, spec)
+	// "--": a link starting with a dash is still a link, not a flag.
+	args = append(args, "--", spec)
 
 	//nolint:gosec // the binary name is fixed; the spec is the user's own link
 	cmd := exec.CommandContext(ctx, binary, args...)
