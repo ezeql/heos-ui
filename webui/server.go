@@ -79,7 +79,10 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/account", s.wrap(s.account))
 	mux.HandleFunc("POST /api/account/signin", s.wrap(s.accountSignin))
 	mux.HandleFunc("POST /api/account/signout", s.wrap(s.accountSignout))
-	return mux
+	// Every POST drives the speakers or the HEOS account; without this, any
+	// site open in the same browser could send them. Same-origin pages and
+	// non-browser clients (no Origin, no Sec-Fetch-Site) still get through.
+	return http.NewCrossOriginProtection().Handler(mux)
 }
 
 func (s *Server) index(w http.ResponseWriter, _ *http.Request) {
