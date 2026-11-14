@@ -45,8 +45,7 @@ const (
 )
 
 func histogram(times []float64, duration float64) []float64 {
-	bins := max(int(duration/binSeconds)+1, 1)
-	counts := make([]float64, bins)
+	counts := make([]float64, int(duration/binSeconds)+1)
 	for _, moment := range times {
 		if moment >= 0 && moment <= duration {
 			counts[int(moment/binSeconds)]++
@@ -59,9 +58,6 @@ func histogram(times []float64, duration float64) []float64 {
 func score(cues []Cue, counts []float64, duration, shift float64) float64 {
 	total := 0.0
 	window := int(reactionWindow / binSeconds)
-	if window == 0 {
-		window = 1
-	}
 	for _, cue := range cues {
 		moment := cue.Start + shift
 		if moment < 0 || moment > duration {
@@ -108,16 +104,6 @@ func EstimateOffset(cues []Cue, commentTimes []float64, duration float64) (offse
 	}
 
 	counts := histogram(usable, duration)
-	any := false
-	for _, c := range counts {
-		if c > 0 {
-			any = true
-			break
-		}
-	}
-	if !any {
-		return 0, 0
-	}
 
 	steps := int(2*maxShift/shiftStep) + 1
 	shifts := make([]float64, steps)
