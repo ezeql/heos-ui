@@ -336,8 +336,6 @@ func (c *Client) fetch(ctx context.Context, endpoint string, query url.Values, i
 
 // trimQuery keeps the client_id out of error messages.
 func trimQuery(endpoint string) string {
-	if before, _, ok := strings.Cut(endpoint, "?"); ok {
-		return before
-	}
-	return endpoint
+	before, _, _ := strings.Cut(endpoint, "?")
+	return before
 }

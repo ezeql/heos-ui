@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 )
 
 // mediaInfo is the slice of the yt-dlp info dict this package reads.
@@ -56,22 +57,14 @@ func ytdlpExtract(ctx context.Context, spec string, withComments bool) (*mediaIn
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
-		return nil, fmt.Errorf("yt-dlp: %w: %s", err, firstLine(stderr.String()))
+		reason, _, _ := strings.Cut(stderr.String(), "\n")
+		return nil, fmt.Errorf("yt-dlp: %w: %s", err, reason)
 	}
 	var info mediaInfo
 	if err := json.Unmarshal(stdout.Bytes(), &info); err != nil {
 		return nil, fmt.Errorf("yt-dlp output: %w", err)
 	}
 	return &info, nil
-}
-
-func firstLine(s string) string {
-	for i, r := range s {
-		if r == '\n' {
-			return s[:i]
-		}
-	}
-	return s
 }
 
 // commentTimes returns the offsets of every timed comment, for aligning a
