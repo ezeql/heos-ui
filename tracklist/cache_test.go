@@ -216,19 +216,6 @@ func TestSettingAnOffsetOnAnUnknownSetIsIgnored(t *testing.T) {
 	}
 }
 
-func TestForgettingASet(t *testing.T) {
-	t.Parallel()
-	cache := testCache(t)
-	cache.Put(spec, sample("test"))
-	cache.Forget(spec)
-	if cache.Get(spec) != nil {
-		t.Error("forgotten set still cached")
-	}
-	if NewCache(cache.path).Get(spec) != nil {
-		t.Error("forgetting must persist")
-	}
-}
-
 func TestTheFileDoesNotGrowWithoutBound(t *testing.T) {
 	t.Parallel()
 	cache := testCache(t)

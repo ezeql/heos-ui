@@ -311,15 +311,6 @@ func (c *Cache) SetOffset(spec string, offset float64) {
 	c.save()
 }
 
-// Forget drops a set from the cache.
-func (c *Cache) Forget(spec string) {
-	c.load()
-	if _, ok := c.entries[CacheKey(spec)]; ok {
-		delete(c.entries, CacheKey(spec))
-		c.save()
-	}
-}
-
 func (c *Cache) prune() {
 	if len(c.entries) <= maxEntries {
 		return

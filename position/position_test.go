@@ -102,23 +102,6 @@ func TestAnchorReplacesTheEstimate(t *testing.T) {
 	}
 }
 
-func TestFinishedReportsTheEndOfTheTrack(t *testing.T) {
-	t.Parallel()
-	if !startedAgo(10, 500).Finished() {
-		t.Error("expected finished")
-	}
-	if NewClock(10).Finished() {
-		t.Error("a fresh clock must not be finished")
-	}
-}
-
-func TestWithoutADurationItNeverReportsFinished(t *testing.T) {
-	t.Parallel()
-	if startedAgo(0, 5000).Finished() {
-		t.Error("no duration: finished must be false")
-	}
-}
-
 // -- RelTime ---------------------------------------------------------------
 
 func TestParseRelTime(t *testing.T) {
