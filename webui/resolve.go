@@ -19,6 +19,8 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"path"
+	"slices"
 	"strings"
 
 	"github.com/ezeql/heoscli-go/soundcloud"
@@ -43,13 +45,8 @@ func directlyPlayable(spec string) bool {
 	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") {
 		return false
 	}
-	path := strings.ToLower(parsed.Path)
-	for _, ext := range []string{".mp3", ".aac", ".m4a", ".flac", ".wav", ".ogg"} {
-		if strings.HasSuffix(path, ext) {
-			return true
-		}
-	}
-	return false
+	ext := path.Ext(strings.ToLower(parsed.Path))
+	return slices.Contains([]string{".mp3", ".aac", ".m4a", ".flac", ".wav", ".ogg"}, ext)
 }
 
 // resolveSpec turns a link into a playable stream plus display metadata.
@@ -57,9 +54,7 @@ func resolveSpec(ctx context.Context, spec string) (*trackInfo, error) {
 	if directlyPlayable(spec) {
 		name := spec
 		if parsed, err := url.Parse(spec); err == nil && parsed.Path != "" {
-			if segments := strings.Split(strings.Trim(parsed.Path, "/"), "/"); len(segments) > 0 {
-				name = segments[len(segments)-1]
-			}
+			name = path.Base(parsed.Path)
 		}
 		return &trackInfo{title: name, streamURL: spec}, nil
 	}
