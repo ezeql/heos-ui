@@ -44,7 +44,7 @@ func TestALinkNeverReachesYtdlpAsAnOption(t *testing.T) {
 	argv := filepath.Join(dir, "argv")
 	fake := filepath.Join(dir, "yt-dlp")
 	script := "#!/bin/sh\nprintf '%s\\n' \"$@\" > '" + argv + "'\nexit 1\n"
-	if err := os.WriteFile(fake, []byte(script), 0o700); err != nil { //nolint:gosec // test fixture
+	if err := os.WriteFile(fake, []byte(script), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("HEOSCLI_YTDLP", fake)
