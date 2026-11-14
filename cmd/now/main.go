@@ -29,14 +29,6 @@ import (
 	"github.com/ezeql/heoscli-go/tracklist"
 )
 
-func clock(seconds float64) string {
-	total := int(seconds)
-	if total >= 3600 {
-		return fmt.Sprintf("%d:%02d:%02d", total/3600, total/60%60, total%60)
-	}
-	return fmt.Sprintf("%d:%02d", total/60, total%60)
-}
-
 func pickPlayer(players map[int]*goheos.Player, name string) *goheos.Player {
 	var fallback *goheos.Player
 	for _, p := range players {
@@ -167,12 +159,12 @@ func render(found *tracklist.Tracklist, at float64, estimated, playing bool) str
 	}
 	state := found.At(at)
 	if state == nil {
-		return fmt.Sprintf("%s%s  (before the first cue)", marker, clock(at))
+		return fmt.Sprintf("%s%s  (before the first cue)", marker, tracklist.FormatTimestamp(at))
 	}
-	line := fmt.Sprintf("%s%s  [%d/%d] %s", marker, clock(at),
+	line := fmt.Sprintf("%s%s  [%d/%d] %s", marker, tracklist.FormatTimestamp(at),
 		state.Index+1, state.Total, state.Current.Describe())
 	if state.Next != nil && state.RemainingKnown && state.Remaining <= 120 {
-		line += fmt.Sprintf("  → %s in %s", state.Next.Describe(), clock(state.Remaining))
+		line += fmt.Sprintf("  → %s in %s", state.Next.Describe(), tracklist.FormatTimestamp(state.Remaining))
 	}
 	return line
 }

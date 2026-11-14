@@ -40,6 +40,16 @@ func TestParsesClockValues(t *testing.T) {
 	}
 }
 
+func TestFormatTimestampRoundTrips(t *testing.T) {
+	t.Parallel()
+	for _, seconds := range []float64{0, 59, 320, 3599, 3600, 3753, 36000 + 61} {
+		formatted := FormatTimestamp(seconds)
+		if got, ok := ParseTimestamp(formatted); !ok || got != seconds {
+			t.Errorf("ParseTimestamp(FormatTimestamp(%v) = %q) = %v/%v", seconds, formatted, got, ok)
+		}
+	}
+}
+
 func TestRejectsImpossibleClockValues(t *testing.T) {
 	t.Parallel()
 	for _, text := range []string{"2:5", "99:99", "1:75:20", "", "abc", "12", "5-20"} {

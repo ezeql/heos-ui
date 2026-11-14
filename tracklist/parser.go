@@ -13,6 +13,7 @@ package tracklist
 // timestamp only counts when it opens the line.
 
 import (
+	"fmt"
 	"regexp"
 	"sort"
 	"strconv"
@@ -67,6 +68,16 @@ func ParseTimestamp(text string) (float64, bool) {
 		return 0, false
 	}
 	return timestampSeconds(match[1], match[2], match[3])
+}
+
+// FormatTimestamp is the inverse of ParseTimestamp: "m:ss" under an hour,
+// "h:mm:ss" from there on, whole seconds.
+func FormatTimestamp(seconds float64) string {
+	total := int(seconds)
+	if total >= 3600 {
+		return fmt.Sprintf("%d:%02d:%02d", total/3600, total/60%60, total%60)
+	}
+	return fmt.Sprintf("%d:%02d", total/60, total%60)
 }
 
 // timestampSeconds converts matched clock fields, rejecting impossible
