@@ -120,10 +120,9 @@ func (s *Server) nowPayload(shown playerView, players []playerView) map[string]a
 	estimated := false
 
 	s.mu.Lock()
-	clock := s.clock
 	title, artist, image := s.title, s.artist, s.image
 	s.mu.Unlock()
-	if durationMS == nil && clock != nil {
+	if durationMS == nil {
 		// The firmware reports nothing for URL streams, so fall back to the
 		// clock we started when playback began. Milliseconds, like HEOS.
 		playing := false
@@ -133,10 +132,11 @@ func (s *Server) nowPayload(shown playerView, players []playerView) map[string]a
 				break
 			}
 		}
-		clock.Sync(playing)
-		positionMS = int(clock.Position() * 1000)
-		durationMS = nil
-		estimated = true
+		if ms, ok := s.clockReading(playing); ok {
+			positionMS = ms
+			durationMS = nil
+			estimated = true
+		}
 	}
 
 	return map[string]any{
@@ -154,6 +154,29 @@ func (s *Server) nowPayload(shown playerView, players []playerView) map[string]a
 		// The DIDL quality parse is not ported yet; the page treats null as
 		// "no line", same as a speaker that does not answer.
 		"quality": nil,
+	}
+}
+
+// clockReading syncs our clock with the speaker's state and reads it, in
+// milliseconds; ok is false when we started nothing. It holds s.mu
+// throughout: every open tab polls /api/state on its own goroutine, and
+// seek re-anchors the same clock.
+func (s *Server) clockReading(playing bool) (ms int, ok bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.clock == nil {
+		return 0, false
+	}
+	s.clock.Sync(playing)
+	return int(s.clock.Position() * 1000), true
+}
+
+// anchorClock moves our clock to a position the speaker confirmed.
+func (s *Server) anchorClock(seconds float64) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.clock != nil {
+		s.clock.Anchor(seconds)
 	}
 }
 
@@ -268,11 +291,7 @@ func (s *Server) seek(r *http.Request) (any, error) {
 		}
 	}
 	// Our own clock has to follow, or the page would snap back.
-	s.mu.Lock()
-	if s.clock != nil {
-		s.clock.Anchor(seconds)
-	}
-	s.mu.Unlock()
+	s.anchorClock(seconds)
 	return map[string]any{"position": int(seconds * 1000)}, nil
 }
 
