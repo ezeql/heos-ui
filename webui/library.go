@@ -15,8 +15,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
+	"sync"
 )
 
 // PlaylistItem is one entry. URL is what gets played; the rest is for
@@ -56,9 +58,24 @@ func (p *Playlist) Image() *string {
 	return nil
 }
 
+// clone copies the playlist so a caller can read it after the library's
+// lock is released while another request edits the original.
+func (p *Playlist) clone() *Playlist {
+	if p == nil {
+		return nil
+	}
+	return &Playlist{Name: p.Name, Items: slices.Clone(p.Items)}
+}
+
 // Library holds every saved playlist, backed by a single JSON file.
+//
+// Every HTTP request uses it from its own goroutine, so each exported method
+// takes mu once and returns copies; the unexported find and get assume it
+// is held.
 type Library struct {
-	path      string
+	path string
+
+	mu        sync.Mutex
 	playlists map[string]*Playlist
 	loaded    bool
 }
@@ -143,6 +160,8 @@ func (l *Library) save() {
 
 // All returns every playlist, sorted by name.
 func (l *Library) All() []*Playlist {
+	l.mu.Lock()
+	defer l.mu.Unlock()
 	l.load()
 	names := make([]string, 0, len(l.playlists))
 	for name := range l.playlists {
@@ -151,13 +170,19 @@ func (l *Library) All() []*Playlist {
 	sort.Strings(names)
 	all := make([]*Playlist, len(names))
 	for i, name := range names {
-		all[i] = l.playlists[name]
+		all[i] = l.playlists[name].clone()
 	}
 	return all
 }
 
 // Find looks up by name, case-insensitively.
 func (l *Library) Find(name string) *Playlist {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.find(name).clone()
+}
+
+func (l *Library) find(name string) *Playlist {
 	l.load()
 	wanted := strings.ToLower(strings.TrimSpace(name))
 	for _, playlist := range l.playlists {
@@ -170,7 +195,14 @@ func (l *Library) Find(name string) *Playlist {
 
 // Get is Find with a user-facing error naming the existing lists.
 func (l *Library) Get(name string) (*Playlist, error) {
-	if found := l.Find(name); found != nil {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	playlist, err := l.get(name)
+	return playlist.clone(), err
+}
+
+func (l *Library) get(name string) (*Playlist, error) {
+	if found := l.find(name); found != nil {
 		return found, nil
 	}
 	known := "none yet"
@@ -191,23 +223,27 @@ func (l *Library) names() []string {
 
 // Create adds an empty playlist.
 func (l *Library) Create(name string) (*Playlist, error) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
 	l.load()
 	clean := strings.TrimSpace(name)
 	if clean == "" {
 		return nil, errors.New("a playlist needs a name")
 	}
-	if l.Find(clean) != nil {
+	if l.find(clean) != nil {
 		return nil, fmt.Errorf("a playlist named '%s' already exists", clean)
 	}
 	playlist := &Playlist{Name: clean}
 	l.playlists[clean] = playlist
 	l.save()
-	return playlist, nil
+	return playlist.clone(), nil
 }
 
 // Delete removes a playlist.
 func (l *Library) Delete(name string) error {
-	playlist, err := l.Get(name)
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	playlist, err := l.get(name)
 	if err != nil {
 		return err
 	}
@@ -218,7 +254,9 @@ func (l *Library) Delete(name string) error {
 
 // Add appends an entry, rejecting duplicates by URL.
 func (l *Library) Add(name string, item PlaylistItem) (*Playlist, error) {
-	playlist, err := l.Get(name)
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	playlist, err := l.get(name)
 	if err != nil {
 		return nil, err
 	}
@@ -229,12 +267,14 @@ func (l *Library) Add(name string, item PlaylistItem) (*Playlist, error) {
 	}
 	playlist.Items = append(playlist.Items, item)
 	l.save()
-	return playlist, nil
+	return playlist.clone(), nil
 }
 
 // Remove drops the entry at the given index.
 func (l *Library) Remove(name string, index int) (*Playlist, error) {
-	playlist, err := l.Get(name)
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	playlist, err := l.get(name)
 	if err != nil {
 		return nil, err
 	}
@@ -243,12 +283,14 @@ func (l *Library) Remove(name string, index int) (*Playlist, error) {
 	}
 	playlist.Items = append(playlist.Items[:index], playlist.Items[index+1:]...)
 	l.save()
-	return playlist, nil
+	return playlist.clone(), nil
 }
 
 // Move reorders an entry, which is what makes a playlist worth having.
 func (l *Library) Move(name string, index, to int) (*Playlist, error) {
-	playlist, err := l.Get(name)
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	playlist, err := l.get(name)
 	if err != nil {
 		return nil, err
 	}
@@ -266,5 +308,5 @@ func (l *Library) Move(name string, index, to int) (*Playlist, error) {
 	playlist.Items = append(playlist.Items[:to],
 		append([]PlaylistItem{item}, playlist.Items[to:]...)...)
 	l.save()
-	return playlist, nil
+	return playlist.clone(), nil
 }

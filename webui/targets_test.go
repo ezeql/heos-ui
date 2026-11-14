@@ -1,9 +1,11 @@
 package webui
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -153,6 +155,50 @@ func TestLibraryCorruptFileStartsEmpty(t *testing.T) {
 	}
 	if _, err := library.Create("Fresh"); err != nil {
 		t.Errorf("library unusable after corrupt start: %v", err)
+	}
+}
+
+// Every /api/playlists* handler runs on its own net/http goroutine: two tabs,
+// or a double click on "add", hit the library at once.
+func TestLibraryConcurrentUse(t *testing.T) {
+	t.Parallel()
+	library := testLibrary(t)
+	if _, err := library.Create("Shared"); err != nil {
+		t.Fatal(err)
+	}
+	const n = 20
+	var wg sync.WaitGroup
+	for i := range n {
+		wg.Go(func() {
+			url := fmt.Sprintf("http://x/%d", i)
+			added, err := library.Add("shared", PlaylistItem{URL: url, Title: url})
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			_ = playlistJSON(added)
+			_, _ = library.Move("Shared", 0, i)
+			// Read what came back while other goroutines keep moving.
+			for _, playlist := range library.All() {
+				_ = playlistJSON(playlist)
+			}
+			_ = library.Find("shared")
+			_, _ = library.Get("missing")
+			scratch := fmt.Sprintf("Scratch %d", i)
+			_, _ = library.Create(scratch)
+			_, _ = library.Add(scratch, PlaylistItem{URL: url, Title: url})
+			_, _ = library.Remove(scratch, 0)
+			if err := library.Delete(scratch); err != nil {
+				t.Error(err)
+			}
+		})
+	}
+	wg.Wait()
+
+	for _, from := range []*Library{library, NewLibrary(library.path)} {
+		if all := from.All(); len(all) != 1 || len(all[0].Items) != n {
+			t.Errorf("want one playlist with %d items, got %+v", n, all)
+		}
 	}
 }
 
