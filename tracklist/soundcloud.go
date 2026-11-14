@@ -44,31 +44,16 @@ func (*DescriptionProvider) Name() string { return "soundcloud-description" }
 // Supports reports whether spec is a SoundCloud link.
 func (*DescriptionProvider) Supports(spec string) bool { return isSoundcloud(spec) }
 
-// Fetch parses the upload's description, using the hint when the caller
-// already resolved it.
-func (p *DescriptionProvider) Fetch(ctx context.Context, spec string, hint *Hint) (*Tracklist, error) {
-	description := ""
-	duration := 0.0
-	if hint != nil {
-		description = hint.Description
-		duration = hint.Duration
+// Fetch parses the upload's description.
+func (p *DescriptionProvider) Fetch(ctx context.Context, spec string) (*Tracklist, error) {
+	info, err := p.extract(ctx, spec, false)
+	if err != nil {
+		return nil, err
 	}
-
-	if description == "" {
-		info, err := p.extract(ctx, spec, false)
-		if err != nil {
-			return nil, err
-		}
-		description = info.Description
-		if duration == 0 {
-			duration = info.Duration
-		}
-	}
-
-	if description == "" {
+	if info.Description == "" {
 		return nil, nil
 	}
-	tracklist := ParseText(description, p.Name(), spec, duration)
+	tracklist := ParseText(info.Description, p.Name(), spec, info.Duration)
 	return &tracklist, nil
 }
 
@@ -88,15 +73,12 @@ func (*CommentsProvider) Name() string { return "soundcloud-comments" }
 func (*CommentsProvider) Supports(spec string) bool { return isSoundcloud(spec) }
 
 // Fetch turns comments that name a track into a tracklist.
-func (p *CommentsProvider) Fetch(ctx context.Context, spec string, hint *Hint) (*Tracklist, error) {
+func (p *CommentsProvider) Fetch(ctx context.Context, spec string) (*Tracklist, error) {
 	info, err := p.extract(ctx, spec, true)
 	if err != nil {
 		return nil, err
 	}
 	duration := info.Duration
-	if hint != nil && hint.Duration > 0 {
-		duration = hint.Duration
-	}
 
 	cues := cuesFromComments(info.Comments, duration)
 	if len(cues) == 0 {

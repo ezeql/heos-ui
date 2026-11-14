@@ -36,7 +36,7 @@ func (*LocalFileProvider) Supports(spec string) bool {
 }
 
 // Fetch parses the file. A file too large or unreadable yields nil.
-func (p *LocalFileProvider) Fetch(_ context.Context, spec string, hint *Hint) (*Tracklist, error) {
+func (p *LocalFileProvider) Fetch(_ context.Context, spec string) (*Tracklist, error) {
 	path := expandUser(spec)
 	info, err := os.Stat(path)
 	if err != nil || info.Size() > maxLocalFileBytes {
@@ -49,10 +49,7 @@ func (p *LocalFileProvider) Fetch(_ context.Context, spec string, hint *Hint) (*
 	if err != nil {
 		return nil, nil
 	}
-	duration := 0.0
-	if hint != nil {
-		duration = hint.Duration
-	}
-	tracklist := ParseText(string(raw), p.Name(), path, duration)
+	// A text file says nothing about how long the set is.
+	tracklist := ParseText(string(raw), p.Name(), path, 0)
 	return &tracklist, nil
 }

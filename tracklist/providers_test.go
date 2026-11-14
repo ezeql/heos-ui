@@ -24,7 +24,7 @@ type fakeProvider struct {
 
 func (p *fakeProvider) Name() string         { return p.name }
 func (p *fakeProvider) Supports(string) bool { return p.supports }
-func (p *fakeProvider) Fetch(context.Context, string, *Hint) (*Tracklist, error) {
+func (p *fakeProvider) Fetch(context.Context, string) (*Tracklist, error) {
 	p.calls++
 	return p.result, p.err
 }
@@ -156,28 +156,11 @@ func fixedExtractor(info *mediaInfo, err error) (extractor, *int) {
 	}, &calls
 }
 
-func TestTheDescriptionIsReadFromTheHintWithoutTouchingTheNetwork(t *testing.T) {
-	t.Parallel()
-	extract, calls := fixedExtractor(nil, errors.New("must not be called"))
-	provider := &DescriptionProvider{extract: extract}
-	found, err := provider.Fetch(context.Background(), "https://soundcloud.com/dj/set",
-		&Hint{Description: description, Duration: 3600})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if found == nil || found.Len() != 3 || found.Duration != 3600 {
-		t.Errorf("found = %+v", found)
-	}
-	if *calls != 0 {
-		t.Error("hint present: the network must not be touched")
-	}
-}
-
 func TestTheDescriptionIsFetchedWhenNotAlreadyKnown(t *testing.T) {
 	t.Parallel()
 	extract, _ := fixedExtractor(&mediaInfo{Description: description, Duration: 3600}, nil)
 	provider := &DescriptionProvider{extract: extract}
-	found, err := provider.Fetch(context.Background(), "https://soundcloud.com/dj/set", nil)
+	found, err := provider.Fetch(context.Background(), "https://soundcloud.com/dj/set")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -190,7 +173,7 @@ func TestASetWithNoDescription(t *testing.T) {
 	t.Parallel()
 	extract, _ := fixedExtractor(&mediaInfo{Duration: 3600}, nil)
 	provider := &DescriptionProvider{extract: extract}
-	found, err := provider.Fetch(context.Background(), "https://soundcloud.com/dj/set", nil)
+	found, err := provider.Fetch(context.Background(), "https://soundcloud.com/dj/set")
 	if err != nil || found != nil {
 		t.Errorf("found = %+v, err = %v", found, err)
 	}

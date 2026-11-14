@@ -25,26 +25,16 @@ const MinCues = 3
 // fetchTimeout: no provider gets to hold up the display.
 const fetchTimeout = 20 * time.Second
 
-// Hint carries what the caller already has, so a provider need not fetch it
-// again. The player has just resolved the set through yt-dlp and holds its
-// description; asking SoundCloud for it a second time would be pure waste.
-type Hint struct {
-	Description string
-	Duration    float64
-	Text        string
-}
-
 // Provider is one source of tracklists.
 type Provider interface {
 	Name() string
 	Supports(spec string) bool
 	// Fetch returns nil when the source has nothing for this set; an error
 	// means the source is broken, which the chain treats the same way.
-	Fetch(ctx context.Context, spec string, hint *Hint) (*Tracklist, error)
+	Fetch(ctx context.Context, spec string) (*Tracklist, error)
 }
 
 type options struct {
-	hint      *Hint
 	cache     *Cache
 	refresh   bool
 	calibrate bool
@@ -63,11 +53,6 @@ func defaultsOptions() options {
 
 // Option configures Resolve and Find.
 type Option func(*options)
-
-// WithHint passes along metadata the caller already resolved.
-func WithHint(hint Hint) Option {
-	return func(o *options) { o.hint = &hint }
-}
 
 // WithCache reads and writes the given cache.
 func WithCache(cache *Cache) Option {
@@ -141,7 +126,7 @@ func resolve(ctx context.Context, spec string, o *options) *Tracklist {
 		found, err := func() (*Tracklist, error) {
 			fetchCtx, cancel := context.WithTimeout(ctx, fetchTimeout)
 			defer cancel()
-			return provider.Fetch(fetchCtx, spec, o.hint)
+			return provider.Fetch(fetchCtx, spec)
 		}()
 		if err != nil {
 			// A broken source is a normal outcome here, not an error.
