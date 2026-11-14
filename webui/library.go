@@ -7,7 +7,7 @@ package webui
 // ordered set of links, so anything playable can go in.
 //
 // Saved as JSON next to the config, in the same file and schema as the
-// Python implementation, so both can share it.
+// Python heoscli, so both tools can share it.
 
 import (
 	"encoding/json"

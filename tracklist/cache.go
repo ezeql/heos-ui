@@ -8,7 +8,7 @@ package tracklist
 //
 // One JSON file next to the config, written atomically, and a corrupt file
 // starts empty rather than breaking every command. The schema is identical to
-// the Python heoscli cache, so both implementations can share the file.
+// the Python heoscli cache, so both tools can share the file.
 
 import (
 	"encoding/json"
@@ -107,7 +107,7 @@ func NewCache(path string) *Cache {
 	return &Cache{path: path, entries: map[string]*cacheEntry{}, now: time.Now}
 }
 
-// JSON wire format, kept byte-compatible with the Python implementation:
+// JSON wire format, kept byte-compatible with the Python heoscli:
 // nulls where Python writes None.
 
 type cacheFile struct {

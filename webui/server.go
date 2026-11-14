@@ -56,7 +56,7 @@ func New(heos *goheos.Client, library *Library, logger *slog.Logger) *Server {
 	return &Server{heos: heos, library: library, logger: logger}
 }
 
-// Handler returns the HTTP routes, mirroring the Python webui exactly.
+// Handler returns the routes: the page and the JSON API it polls.
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /{$}", s.index)

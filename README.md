@@ -1,14 +1,18 @@
 # heoscli-go
 
-Go port of [heoscli](https://github.com/ezeql/heoscli): a web UI for Denon/HEOS
-speakers, and knowing which track of a DJ set is playing. The speaker
-connection is [goheos](https://github.com/ezeql/goheos).
+A command-line tool and web UI for Denon/HEOS speakers, built on
+[goheos](https://github.com/ezeql/goheos), the Go library for the HEOS protocol
+that does all the talking to the speakers. The web UI plays and controls; the
+commands know which track of a DJ set is playing.
+
+State lives in `~/.config/heoscli/`, in the same files and formats the Python
+[heoscli](https://github.com/ezeql/heoscli) uses, so both tools can share it.
 
 ## Commands
 
 | Command | What it does |
 |---|---|
-| `ui [-host IP] [-port 8080]` | The heoscli web UI (`make run`). See **Web UI**. |
+| `ui [-host IP] [-port 8080]` | The web UI (`make run`). See **Web UI**. |
 | `now [-host IP] [-player NAME] [-offset S] <link\|file>` | Which track of a set is playing on a speaker, live. |
 | `tracklist [-at 1:02:30] [-refresh] [-no-cache] [-v] <link\|file>` | Finds a tracklist for a set and, with `-at`, what plays at that position. |
 
@@ -19,8 +23,8 @@ with a tracklist in it.
 
 ## Web UI
 
-The same page, endpoints and response shapes as the Python web UI, served by
-the `webui` package over goheos instead of pyheos:
+The `webui` package serves one embedded page (`webui/static/index.html`) and
+the JSON API it polls, talking to the speakers through goheos:
 
 - **Playback**: a direct http(s) audio URL plays as-is, a SoundCloud link is
   resolved by the Go client, and anything else goes to yt-dlp if it is
@@ -41,27 +45,25 @@ same browser are rejected (403), so a web page you visit cannot.
 
 ## Tracklists
 
-A set streamed through the proxy reaches the speaker as a single hour-long URL
-stream, so the firmware reports "Url Stream" and nothing else for the whole
-hour. The `tracklist` package finds a tracklist for the set, lines it up with
+A DJ set reaches the speaker as a single hour-long URL stream, so the
+firmware reports "Url Stream" and nothing else for the whole hour. The `tracklist` package finds a tracklist for the set, lines it up with
 the audio, and maps a playback position to the track on right now.
 
 - **Model** — `Cue`, `CueState`, `Tracklist.At(position)` (bisect lookup).
 - **Parser** — cue points out of free text: descriptions, pasted lists. The
-  central rule survives the port: a timestamp only counts when it opens the
-  line, which is what keeps "recorded live at 2:00 AM" out.
+  central rule: a timestamp only counts when it opens the line, which is what keeps "recorded live at 2:00 AM" out.
 - **Providers** — local text file, SoundCloud description, SoundCloud timed
   comments, chained cheapest-and-most-trustworthy first. Nothing in the chain
   fails loudly: no tracklist is an answer, not an error.
 - **Cache** — one JSON file, atomic writes, 30-day TTL, byte-compatible with
-  the Python implementation: both can share
+  the Python heoscli: both can share
   `~/.config/heoscli/tracklists.json` (verified round-trip in both
   directions).
 - **Alignment** — sliding the tracklist against the density of timed comments
   to recover a trimmed intro, refusing to invent a shift when the comments
   say nothing (`EstimateOffset`).
 
-SoundCloud metadata no longer needs a binary installed: the `soundcloud`
+SoundCloud metadata needs no binary installed: the `soundcloud`
 package speaks the private API the web player itself uses, which is where
 yt-dlp reads the same fields from. See **Resolving links** below.
 
@@ -84,8 +86,8 @@ if state != nil {
 
 ## Resolving links
 
-`yt-dlp` is no longer required for SoundCloud, which is the only site this
-backend really needs. The `soundcloud` package reaches the private API the
+`yt-dlp` is not required for SoundCloud, which is the only site this tool
+really needs. The `soundcloud` package reaches the private API the
 web player itself uses — the same one yt-dlp reads — in Go, with no
 dependencies:
 
@@ -93,8 +95,8 @@ dependencies:
   (`full_duration`, so a preview never shortens the timeline a tracklist is
   lined up against).
 - `StreamURL` — the progressive MP3. SoundCloud offers the same audio over
-  HLS too, and the firmware will not follow a playlist of segments; that is
-  the case the Python proxy covers and this port does not.
+  HLS too, and the firmware will not follow a playlist of segments; playing
+  those needs a streaming proxy, which this tool does not have.
 - `Comments` — the timed comments, paged, capped at 1000. Here `timestamp` is
   the position *within the audio*, unlike yt-dlp's `timestamp`, which is when
   the comment was posted.
@@ -111,21 +113,21 @@ refuses it — that id rotates every few weeks, and being turned away is the
 only way to learn it has. **This is the part that can break without warning**,
 and it is why yt-dlp remains the fallback rather than being deleted.
 
-## Deliberately not ported
+## Not supported
 
-- **Acoustic identification** (`acoustic.py`, Shazam sampling,
-  `scan_audio`/`identify_playing`) — non-trivial; the `shazam` source name is
-  still honored in cached entries. In the web UI, "identify" answers 501.
-- **1001tracklists scraping** (`scrape.py`) — needs browser cookies. The
+- **Identifying tracks by listening** (Shazam-style sampling): in the web UI,
+  "identify" answers 501. The `shazam` source name is still honored in cache
+  entries the Python heoscli wrote.
+- **1001tracklists** as a tracklist source: it needs browser cookies. The
   `Provider` interface is the extension point when it becomes worth it.
-- **The streaming proxy**: transcoding, HLS, live streams, and feeding a
+- **A streaming proxy**: transcoding, HLS, live streams, and feeding a
   playlist one track after another. Without it the web UI only plays what the
   speaker can fetch by itself, and "play" on a playlist plays its first
   track.
 - **The audio quality line** in the web UI (the DIDL parse): it shows no line,
   like a speaker that does not answer.
-- **The TUI and the rest of the Python CLI**: the commands here are the three
-  above.
+- **Controlling playback from the command line**: `now` and `tracklist` only
+  read; play, volume, grouping and seek are the web UI's.
 
 ## Finding the speaker
 

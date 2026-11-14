@@ -2,13 +2,11 @@ package webui
 
 // Turning a pasted link into something the speaker can fetch.
 //
-// The Python implementation resolves through yt-dlp as a library and streams
-// through a local proxy when the format does not fit the speaker. This port
-// covers the base routes only: a direct http(s) audio URL plays as-is, a
-// SoundCloud link is resolved to its progressive MP3 by the Go client, and
-// anything else falls to yt-dlp when it is installed. The proxy —
-// transcoding, live streams, multi-track sets fed one by one — is
-// deliberately not ported yet.
+// Three routes: a direct http(s) audio URL plays as-is, a SoundCloud link is
+// resolved to its progressive MP3 by the Go client, and anything else falls
+// to yt-dlp when it is installed. There is no streaming proxy — transcoding,
+// live streams, multi-track sets fed one by one — so only what the speaker
+// can fetch by itself plays.
 
 import (
 	"bytes"

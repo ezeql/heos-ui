@@ -1,12 +1,10 @@
 // Package tracklist answers "which track of a DJ set is playing".
 //
-// A set streamed through the proxy reaches the speaker as a single hour-long
-// URL stream, so the firmware reports "Url Stream" and nothing else for the
-// whole hour. This package finds a tracklist for the set, lines it up with
+// A DJ set reaches the speaker as a single hour-long URL stream, so the
+// firmware reports "Url Stream" and nothing else for the whole hour. This package finds a tracklist for the set, lines it up with
 // the audio, and maps a playback position to the track on right now.
 //
-// It is a Go port of the heoscli Python tracklist backend. Acoustic
-// identification (Shazam-style sampling) is deliberately not ported.
+// Identifying tracks by listening (Shazam-style sampling) is not supported.
 //
 // Entry point is Find; the result is a Tracklist whose At maps a position in
 // seconds to a CueState.

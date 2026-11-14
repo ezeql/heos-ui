@@ -2,9 +2,9 @@ package tracklist
 
 // Metadata extraction by shelling out to yt-dlp.
 //
-// The Python implementation uses yt-dlp as a library; here the same binary is
-// invoked as a subprocess. When it is not installed the providers simply come
-// back empty, which the chain treats like any other source that is down.
+// The binary runs as a subprocess. When it is not installed the providers
+// simply come back empty, which the chain treats like any other source that
+// is down.
 
 import (
 	"bytes"
