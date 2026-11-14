@@ -12,8 +12,7 @@ import (
 )
 
 // state answers the poll the page lives on: players, groups, the acting
-// target and what is playing. Shapes mirror the Python webui field for
-// field.
+// target and what is playing, in the shapes static/index.html reads.
 func (s *Server) state(r *http.Request) (any, error) {
 	ctx := r.Context()
 	players, groups, err := s.snapshot(ctx)
@@ -151,7 +150,7 @@ func (s *Server) nowPayload(shown playerView, players []playerView) map[string]a
 		"known_title":   nullable(title),
 		"known_artist":  nullable(artist),
 		"known_image":   nullable(image),
-		// The DIDL quality parse is not ported yet; the page treats null as
+		// There is no DIDL quality parse yet; the page treats null as
 		// "no line", same as a speaker that does not answer.
 		"quality": nil,
 	}
@@ -254,11 +253,11 @@ func (s *Server) play(r *http.Request) (any, error) {
 	}, nil
 }
 
-// identify is the acoustic track identification, deliberately not ported.
+// identify would name the track by listening to it, which is not supported.
 func (s *Server) identify(_ *http.Request) (any, error) {
 	return nil, &apiError{
 		status: http.StatusNotImplemented,
-		reason: "identifying tracks by listening is not ported to this backend yet",
+		reason: "identifying tracks by listening is not supported yet",
 	}
 }
 
@@ -600,8 +599,8 @@ func (s *Server) playlistMove(r *http.Request) (any, error) {
 	return playlistJSON(playlist), nil
 }
 
-// playlistPlay needs the proxy feeder, which is deliberately not ported: it
-// plays the first track directly instead so the button still does something
+// playlistPlay would need a streaming proxy to feed the whole list. Without
+// one it plays the first track directly, so the button still does something
 // honest.
 func (s *Server) playlistPlay(r *http.Request) (any, error) {
 	ctx := r.Context()
@@ -641,7 +640,7 @@ func (s *Server) playlistPlay(r *http.Request) (any, error) {
 	}
 	return map[string]any{
 		"route":  "direct",
-		"detail": "queue feeding is not ported yet: playing the first track only",
+		"detail": "queue feeding is not supported yet: playing the first track only",
 		"title":  playlist.Name,
 		"target": resolved.describe(),
 		"tracks": titles,

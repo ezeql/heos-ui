@@ -177,9 +177,8 @@ func (raw apiTrack) track() *Track {
 // StreamURL returns a URL the speaker can fetch by itself.
 //
 // Only the progressive MP3 qualifies. SoundCloud offers the same audio over
-// HLS as well, and the firmware will not follow a playlist of segments — that
-// is the case the Python implementation covers with its local proxy, which is
-// not ported.
+// HLS as well, and the firmware will not follow a playlist of segments —
+// playing those needs a local streaming proxy, which this tool does not have.
 func (c *Client) StreamURL(ctx context.Context, track *Track) (string, error) {
 	chosen, ok := progressive(track.transcodings)
 	if !ok {

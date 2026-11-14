@@ -40,7 +40,7 @@ func (l Logf) printf(format string, args ...any) {
 	}
 }
 
-// ConfigPath is heoscli's config file, shared with the Python implementation.
+// ConfigPath is heoscli's config file, shared with the Python heoscli.
 // Python heoscli hardcodes ~/.config/heoscli on every platform, and sharing
 // the file matters more than the platform convention does.
 func ConfigPath() string {

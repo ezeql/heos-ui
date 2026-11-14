@@ -1,11 +1,11 @@
-// Command ui runs the heoscli web UI with the Go backend: the exact same
-// page, served over goheos instead of pyheos.
+// Command ui serves the web UI: the page in webui/static and the JSON API it
+// polls, talking to the speakers through goheos.
 //
 // Usage:
 //
 //	ui [-host IP] [-port 8080]
 //
-// The HEOS host defaults to the one cached by heoscli in
+// The HEOS host defaults to the one cached in
 // ~/.config/heoscli/config.toml, and when that one does not answer the
 // speaker is discovered on the local network instead.
 package main

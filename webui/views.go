@@ -1,6 +1,5 @@
-// Package webui serves the heoscli web page and its JSON API, backed by
-// goheos instead of pyheos. The frontend is byte-identical to the Python
-// one: same index.html, same endpoints, same response shapes.
+// Package webui serves the web page and the JSON API it polls, talking to
+// the speakers through goheos.
 package webui
 
 import (

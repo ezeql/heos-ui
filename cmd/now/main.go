@@ -1,12 +1,12 @@
 // Command now shows which track of a set is playing on a HEOS speaker,
-// live. It joins the three ported pieces: goheos for the speaker connection
+// live. It joins three pieces: goheos for the speaker connection
 // and events, position for the playback clock, and tracklist for the cues.
 //
 // Usage:
 //
 //	now [-host IP] [-player NAME] [-offset SECONDS] <link|file>
 //
-// The host defaults to the one cached by heoscli in
+// The host defaults to the one cached in
 // ~/.config/heoscli/config.toml, and when that one does not answer the
 // speaker is discovered on the local network instead. The spec is the set
 // being played: a SoundCloud link or a local tracklist file.
