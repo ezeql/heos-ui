@@ -70,9 +70,3 @@ func (c *Clock) Position() float64 {
 	}
 	return elapsed
 }
-
-// Finished reports whether the clock ran past the track length. Without a
-// known duration it never does.
-func (c *Clock) Finished() bool {
-	return c.duration > 0 && c.Position() >= c.duration
-}
