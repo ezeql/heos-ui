@@ -116,7 +116,8 @@ func ytdlpResolve(ctx context.Context, spec string) (*trackInfo, error) {
 	cmd := exec.CommandContext(ctx, binary,
 		"--no-download", "--no-warnings", "--no-playlist",
 		"-f", "http_mp3*/http*/bestaudio[protocol^=http]/best[protocol^=http]",
-		"-J", spec)
+		// "--": a link starting with a dash is still a link, not a flag.
+		"-J", "--", spec)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
