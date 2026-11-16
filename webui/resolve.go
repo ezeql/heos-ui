@@ -3,10 +3,10 @@ package webui
 // Turning a pasted link into something the speaker can fetch.
 //
 // Three routes: a direct http(s) audio URL plays as-is, a SoundCloud link is
-// resolved to its progressive MP3 by the Go client, and anything else falls
-// to yt-dlp when it is installed. There is no streaming proxy — transcoding,
-// live streams, multi-track sets fed one by one — so only what the speaker
-// can fetch by itself plays.
+// resolved by the Go client, and anything else falls to yt-dlp when it is
+// installed. A SoundCloud track with a progressive MP3 goes straight to the
+// speaker; one that only offers HLS, as most do now, is converted here by
+// ffmpeg (proxy.go). Sets and live streams are not played.
 
 import (
 	"bytes"
@@ -34,7 +34,13 @@ type trackInfo struct {
 	image     string
 	duration  float64 // seconds; 0 when unknown
 	streamURL string  // what the speaker fetches
+	hls       string  // or, when it cannot fetch anything, a playlist to convert here
 }
+
+// errNeedsFFmpeg: the track exists, but only as HLS, and converting that here
+// takes ffmpeg.
+var errNeedsFFmpeg = errors.New("this track is only offered as HLS, which the speaker " +
+	"cannot play by itself: install ffmpeg so this machine can convert it")
 
 // directlyPlayable reports whether the link itself is something the firmware
 // can fetch without help: plain http(s) audio.
@@ -64,14 +70,17 @@ func resolveSpec(ctx context.Context, spec string) (*trackInfo, error) {
 		// A playlist is a playlist however it is resolved; yt-dlp would only
 		// arrive at the same answer more slowly.
 		if errors.Is(err, soundcloud.ErrNotATrack) {
-			return nil, errors.New("that is a set/playlist; playing those needs the proxy, which this backend does not carry yet — play a single track")
+			return nil, errors.New("that is a set/playlist; only single tracks can be played for now")
 		}
 		// Otherwise yt-dlp gets a turn, but only if it is installed: its
 		// "not installed" would replace the real reason SoundCloud said no.
 		fallback, ytdlpErr := ytdlpResolve(ctx, spec)
 		if ytdlpErr != nil {
-			if errors.Is(err, soundcloud.ErrNoStream) {
-				return nil, errors.New("this track only offers a stream the speaker cannot fetch directly (hls)")
+			switch {
+			case errors.Is(err, errNeedsFFmpeg):
+				return nil, err
+			case errors.Is(err, soundcloud.ErrNoStream):
+				return nil, errors.New("this track is only offered encrypted, which cannot be played here")
 			}
 			return nil, fmt.Errorf("could not resolve the link: %w", err)
 		}
@@ -86,17 +95,31 @@ func soundcloudResolve(ctx context.Context, spec string) (*trackInfo, error) {
 	if err != nil {
 		return nil, err
 	}
+	info := &trackInfo{
+		title:    track.Title,
+		artist:   track.Artist,
+		image:    track.Artwork,
+		duration: track.Duration,
+	}
 	stream, err := scClient.StreamURL(ctx, track)
-	if err != nil {
+	if err == nil {
+		info.streamURL = stream
+		return info, nil
+	}
+	if !errors.Is(err, soundcloud.ErrNoStream) {
 		return nil, err
 	}
-	return &trackInfo{
-		title:     track.Title,
-		artist:    track.Artist,
-		image:     track.Artwork,
-		duration:  track.Duration,
-		streamURL: stream,
-	}, nil
+	// No MP3 to hand over: most tracks are HLS only now, which the speaker
+	// cannot follow but ffmpeg can convert.
+	playlist, hlsErr := scClient.HLSURL(ctx, track)
+	if hlsErr != nil {
+		return nil, err
+	}
+	if _, lookErr := exec.LookPath("ffmpeg"); lookErr != nil {
+		return nil, errNeedsFFmpeg
+	}
+	info.hls = playlist
+	return info, nil
 }
 
 // ytdlpResolve asks yt-dlp for the direct audio URL and metadata. Prefers a
@@ -141,7 +164,7 @@ func ytdlpResolve(ctx context.Context, spec string) (*trackInfo, error) {
 		return nil, fmt.Errorf("could not read what yt-dlp resolved: %w", err)
 	}
 	if info.Type == "playlist" {
-		return nil, errors.New("that is a set/playlist; playing those needs the proxy, which this backend does not carry yet — play a single track")
+		return nil, errors.New("that is a set/playlist; only single tracks can be played for now")
 	}
 	if info.URL == "" || !strings.HasPrefix(info.Protocol, "http") {
 		return nil, fmt.Errorf("this source only offers a stream the speaker cannot fetch directly (%s)", info.Protocol)
