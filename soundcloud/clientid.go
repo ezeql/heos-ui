@@ -18,9 +18,10 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"path/filepath"
 	"regexp"
 	"sync"
+
+	"github.com/ezeql/heoscli-go/internal/config"
 )
 
 const homePage = "https://soundcloud.com/"
@@ -164,11 +165,7 @@ func (c *Client) plainGet(ctx context.Context, target string) ([]byte, error) {
 // It is not a secret — every visitor is handed the same one — so it is stored
 // in the clear, and losing it costs one scrape.
 func idPath() string {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return filepath.Join(".", "soundcloud_client_id")
-	}
-	return filepath.Join(home, ".config", "heoscli", "soundcloud_client_id")
+	return config.Path("soundcloud_client_id")
 }
 
 func readStoredID() string {
@@ -184,9 +181,5 @@ func readStoredID() string {
 }
 
 func storeID(id string) {
-	path := idPath()
-	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
-		return
-	}
-	_ = os.WriteFile(path, []byte(id+"\n"), 0o600)
+	_ = config.WriteAtomic(idPath(), []byte(id+"\n"))
 }

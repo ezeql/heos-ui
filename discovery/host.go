@@ -11,10 +11,11 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/ezeql/heoscli-go/internal/config"
 )
 
 // searchTimeout is how long a search waits for SSDP answers. The M-SEARCH
@@ -40,21 +41,15 @@ func (l Logf) printf(format string, args ...any) {
 	}
 }
 
-// ConfigPath is heoscli's config file, shared with the Python heoscli.
-// Python heoscli hardcodes ~/.config/heoscli on every platform, and sharing
-// the file matters more than the platform convention does.
-func ConfigPath() string {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return filepath.Join(".", "config.toml")
-	}
-	return filepath.Join(home, ".config", "heoscli", "config.toml")
+// configPath is heoscli's config file, shared with the Python heoscli.
+func configPath() string {
+	return config.Path("config.toml")
 }
 
 // Configured returns the speaker heoscli already knows about, or an empty
 // string when it knows about none.
 func Configured() string {
-	raw, err := os.ReadFile(ConfigPath())
+	raw, err := os.ReadFile(configPath())
 	if err != nil {
 		return ""
 	}
@@ -73,7 +68,7 @@ func configuredIn(config string) string {
 // The rest of the file belongs to the Python tool — proxy_port and whatever
 // else it keeps there — so only the host line is rewritten.
 func Remember(host string) error {
-	path := ConfigPath()
+	path := configPath()
 	//nolint:gosec // the path is this tool's own config file, never user input
 	existing, err := os.ReadFile(path)
 	if err != nil && !os.IsNotExist(err) {
@@ -81,19 +76,7 @@ func Remember(host string) error {
 	}
 	updated := withHost(string(existing), host)
 
-	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
-		return err
-	}
-	temporary := path + ".tmp"
-	//nolint:gosec // same file, written back where it was read from
-	if err := os.WriteFile(temporary, []byte(updated), 0o600); err != nil {
-		return err
-	}
-	if err := os.Rename(temporary, path); err != nil {
-		_ = os.Remove(temporary)
-		return err
-	}
-	return nil
+	return config.WriteAtomic(path, []byte(updated))
 }
 
 // withHost replaces the host line in a config, or appends one when the file
@@ -148,7 +131,7 @@ func Resolve(ctx context.Context, override string, log Logf) (string, error) {
 	// A speaker that was found is worth remembering, but failing to write the
 	// config is not worth failing the run over.
 	if err := Remember(chosen.Host); err != nil {
-		log.printf("could not save the host to %s: %v", ConfigPath(), err)
+		log.printf("could not save the host to %s: %v", configPath(), err)
 	}
 	return chosen.Host, nil
 }

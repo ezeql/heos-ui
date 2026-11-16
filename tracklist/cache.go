@@ -19,6 +19,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/ezeql/heoscli-go/internal/config"
 )
 
 const (
@@ -36,18 +38,6 @@ const (
 	// file getting silly.
 	maxEntries = 200
 )
-
-// DefaultCachePath returns the shared heoscli cache location. Python heoscli
-// hardcodes ~/.config/heoscli on every platform (not the macOS Application
-// Support convention), and sharing the file matters more than the platform
-// convention does.
-func DefaultCachePath() string {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return filepath.Join(".", "tracklists.json")
-	}
-	return filepath.Join(home, ".config", "heoscli", "tracklists.json")
-}
 
 // CacheKey is the identity of a set, stable across the ways the same link
 // gets written. SoundCloud hands out links with "?in=<playlist>" when a track
@@ -102,7 +92,7 @@ type Cache struct {
 // first use; a missing or corrupt file starts empty.
 func NewCache(path string) *Cache {
 	if path == "" {
-		path = DefaultCachePath()
+		path = config.Path("tracklists.json")
 	}
 	return &Cache{path: path, entries: map[string]*cacheEntry{}, now: time.Now}
 }
@@ -234,18 +224,7 @@ func (c *Cache) save() {
 	if err != nil {
 		return
 	}
-	if err := os.MkdirAll(filepath.Dir(c.path), 0o750); err != nil {
-		return
-	}
-	temporary := c.path + ".tmp"
-	if err := os.WriteFile(temporary, payload, 0o600); err != nil {
-		return
-	}
-	if err := os.Rename(temporary, c.path); err != nil {
-		_ = os.Remove(temporary)
-		return
-	}
-	_ = os.Chmod(c.path, 0o600)
+	_ = config.WriteAtomic(c.path, payload)
 }
 
 // Get returns the cached tracklist for a set, or nil on a miss or a stale
