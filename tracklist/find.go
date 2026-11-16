@@ -2,6 +2,8 @@ package tracklist
 
 import (
 	"context"
+
+	"github.com/ezeql/heoscli-go/soundcloud"
 )
 
 // alignedToAudio names sources whose timestamps already refer to this exact
@@ -63,7 +65,7 @@ func calibrate(ctx context.Context, spec string, tracklist *Tracklist, o *option
 	if alignedToAudio[tracklist.Source] {
 		return 0
 	}
-	if !isSoundcloud(spec) {
+	if !soundcloud.Is(spec) {
 		return 0
 	}
 	info, err := o.extract(ctx, spec, true)
