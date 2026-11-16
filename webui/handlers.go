@@ -221,11 +221,7 @@ func (s *Server) play(r *http.Request) (any, error) {
 	if url == "" {
 		return nil, badRequest("a link is required")
 	}
-	players, groups, err := s.snapshot(ctx)
-	if err != nil {
-		return nil, err
-	}
-	resolved, err := s.resolveRequestTarget(data, players, groups)
+	resolved, _, err := s.requestTarget(ctx, data)
 	if err != nil {
 		return nil, err
 	}
@@ -269,11 +265,7 @@ func (s *Server) seek(r *http.Request) (any, error) {
 	}
 	seconds := max(0, ms/1000)
 
-	players, groups, err := s.snapshot(r.Context())
-	if err != nil {
-		return nil, err
-	}
-	resolved, err := s.resolveRequestTarget(data, players, groups)
+	resolved, players, err := s.requestTarget(r.Context(), data)
 	if err != nil {
 		return nil, err
 	}
@@ -297,11 +289,7 @@ func (s *Server) seek(r *http.Request) (any, error) {
 func (s *Server) transport(r *http.Request) (any, error) {
 	ctx := r.Context()
 	data := readJSON(r)
-	players, groups, err := s.snapshot(ctx)
-	if err != nil {
-		return nil, err
-	}
-	resolved, err := s.resolveRequestTarget(data, players, groups)
+	resolved, _, err := s.requestTarget(ctx, data)
 	if err != nil {
 		return nil, err
 	}
@@ -335,11 +323,7 @@ func (s *Server) volume(r *http.Request) (any, error) {
 	}
 	clamped := min(100, max(0, int(level)))
 
-	players, groups, err := s.snapshot(ctx)
-	if err != nil {
-		return nil, err
-	}
-	resolved, err := s.resolveRequestTarget(data, players, groups)
+	resolved, _, err := s.requestTarget(ctx, data)
 	if err != nil {
 		return nil, err
 	}
@@ -360,11 +344,7 @@ func (s *Server) volume(r *http.Request) (any, error) {
 func (s *Server) mute(r *http.Request) (any, error) {
 	ctx := r.Context()
 	data := readJSON(r)
-	players, groups, err := s.snapshot(ctx)
-	if err != nil {
-		return nil, err
-	}
-	resolved, err := s.resolveRequestTarget(data, players, groups)
+	resolved, _, err := s.requestTarget(ctx, data)
 	if err != nil {
 		return nil, err
 	}
@@ -612,11 +592,7 @@ func (s *Server) playlistPlay(r *http.Request) (any, error) {
 	if len(playlist.Items) == 0 {
 		return nil, badRequest("'%s' is empty", playlist.Name)
 	}
-	players, groups, err := s.snapshot(ctx)
-	if err != nil {
-		return nil, err
-	}
-	resolved, err := s.resolveRequestTarget(data, players, groups)
+	resolved, _, err := s.requestTarget(ctx, data)
 	if err != nil {
 		return nil, err
 	}
