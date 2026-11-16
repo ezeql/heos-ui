@@ -3,258 +3,306 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="color-scheme" content="dark light">
+<meta name="color-scheme" content="light dark">
 <title>heos-ui</title>
 <style>
   :root {
-    --bg: #0d0f13;
-    --surface: #161a21;
-    --surface-2: #1e232c;
-    --line: #2a313d;
-    --text: #e8ecf3;
-    --muted: #8b93a3;
-    --accent: #4ade80;
-    --accent-dim: #22c55e;
-    --danger: #f87171;
-    --radius: 14px;
+    --bg: #fafaf8;
+    --surface: #f1f0ec;
+    --line: #e4e2dc;
+    --text: #1c1b19;
+    --muted: #67635c;
+    /* One ink: amber, like the standby LED on a piece of hi-fi. It marks what
+       is live — the position, the speaker you are driving, the playing state —
+       and nothing else. */
+    --accent: #a8530a;
+    --danger: #b42318;
+    --radius: 10px;
+    --ease: cubic-bezier(.2, .8, .2, 1);
   }
-  @media (prefers-color-scheme: light) {
+  @media (prefers-color-scheme: dark) {
     :root {
-      --bg: #f4f5f7;
-      --surface: #ffffff;
-      --surface-2: #eef0f4;
-      --line: #dfe3ea;
-      --text: #141821;
-      --muted: #626b7b;
-      --accent: #16a34a;
-      --accent-dim: #15803d;
-      --danger: #dc2626;
+      --bg: #131312;
+      --surface: #1e1d1b;
+      --line: #2c2b28;
+      --text: #edebe6;
+      --muted: #a29e96;
+      --accent: #f0a43c;
+      --danger: #f97066;
     }
   }
   * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html { background: var(--bg); }
   body {
     margin: 0;
-    padding: 24px 16px 48px;
+    padding: max(20px, env(safe-area-inset-top)) 16px 64px;
     background: var(--bg);
     color: var(--text);
     font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
+    caret-color: var(--accent);
   }
-  .wrap { max-width: 680px; margin: 0 auto; display: grid; gap: 16px; }
+  ::selection { background: color-mix(in srgb, var(--accent) 28%, transparent); }
+  .wrap { max-width: 600px; margin: 0 auto; }
 
-  header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
-  h1 { font-size: 17px; margin: 0; letter-spacing: -0.01em; }
-  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); display: inline-block; }
-  .dot.live { background: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
-  .conn { color: var(--muted); font-size: 13px; display: flex; align-items: center; gap: 7px; }
+  /* -- type: four sizes, three weights ----------------------------------- */
+  h1, h2 { margin: 0; font-weight: 600; letter-spacing: -0.01em; }
+  h1 { font-size: 15px; }
+  h2 { font-size: 15px; }
+  .meta, .hint, .empty, .tag, .times, .num { font-size: 13px; color: var(--muted); }
+  code { font-size: 13px; }
 
-  .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; }
+  /* -- icons ------------------------------------------------------------- */
+  .i { width: 20px; height: 20px; flex: none; stroke: currentColor; fill: none;
+       stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
 
-  /* now playing */
-  .np { display: grid; grid-template-columns: 104px 1fr; gap: 16px; align-items: center; }
+  /* -- controls ---------------------------------------------------------- */
+  button {
+    font: inherit; color: var(--text); background: transparent;
+    border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 14px; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    transition: background-color .15s var(--ease), border-color .15s var(--ease), color .15s var(--ease);
+  }
+  button:hover { background: var(--surface); }
+  button:active { background: var(--line); }
+  button:disabled { color: var(--muted); background: transparent; cursor: default; opacity: .6; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .primary { background: var(--text); color: var(--bg); border-color: var(--text); font-weight: 600; }
+  .primary:hover { background: color-mix(in srgb, var(--text) 86%, var(--bg)); }
+  .primary:disabled { background: var(--text); color: var(--bg); }
+  .ghost { border-color: transparent; }
+  .icon { border-color: transparent; padding: 0; width: 40px; height: 40px; color: var(--muted); }
+  .icon:hover { color: var(--text); }
+  .icon.on { color: var(--danger); }
+
+  input[type=text], input[type=email], input[type=password] {
+    flex: 1; min-width: 0; font: inherit; color: var(--text);
+    background: var(--surface); border: 1px solid transparent; border-radius: var(--radius);
+    padding: 9px 12px;
+    transition: border-color .15s var(--ease), background-color .15s var(--ease);
+  }
+  input::placeholder { color: var(--muted); opacity: 1; }
+  input[type=text]:focus, input[type=email]:focus, input[type=password]:focus {
+    outline: none; border-color: var(--accent); background: var(--bg);
+  }
+  input[type=range] { flex: 1; min-width: 0; margin: 0; height: 28px; accent-color: var(--accent); cursor: pointer; }
+
+  /* -- header ------------------------------------------------------------ */
+  .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 28px; }
+  .status { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--line); }
+  .dot.live { background: var(--accent); }
+
+  /* -- sections: separated by space and one hairline, not boxes ---------- */
+  section, details { border-top: 1px solid var(--line); padding: 28px 0; }
+  section.now { border-top: 0; padding-top: 0; }
+  .head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+  /* A ghost button's padding is invisible, so the last one sits on the edge. */
+  .head .ghost:last-child { margin-right: -14px; }
+
+  /* -- now playing ------------------------------------------------------- */
+  .np { display: grid; grid-template-columns: 112px 1fr; gap: 20px; align-items: center; }
   .art {
-    width: 104px; height: 104px; border-radius: 10px; object-fit: cover;
-    background: var(--surface-2); display: grid; place-items: center;
-    color: var(--muted); font-size: 30px; border: 1px solid var(--line);
+    width: 112px; height: 112px; border-radius: var(--radius); object-fit: cover;
+    background: var(--surface); display: grid; place-items: center; color: var(--muted);
   }
-  .title { font-size: 17px; font-weight: 600; margin: 0 0 3px; letter-spacing: -0.01em; overflow-wrap: anywhere; }
-  .artist { color: var(--muted); margin: 0 0 2px; overflow-wrap: anywhere; }
-  .where { color: var(--muted); font-size: 13px; margin-top: 6px; }
-  /* The track inside a set: the one line the firmware can never give us. */
-  .cue { color: var(--accent, #4aa3ff); font-size: 14px; margin-top: 6px; overflow-wrap: anywhere; }
+  .art .i { width: 32px; height: 32px; stroke-width: 1.5; }
+  .title { font-size: 20px; line-height: 1.3; font-weight: 600; letter-spacing: -0.015em;
+           margin: 0 0 4px; overflow-wrap: anywhere; text-wrap: balance; }
+  .artist { margin: 0; color: var(--muted); overflow-wrap: anywhere; }
+  .where { margin: 8px 0 0; }
 
-  /* Taller hit area than it looks: 4px is impossible to grab on a phone.
-     The height is the whole 20px because box-sizing is border-box above, so
-     the visible track is what is left after the padding: 20 - 8 - 8 = 4px.
-     Setting height to 4 here would leave no content box at all and the fill,
-     being 100% of it, would vanish. */
-  .bar { height: 20px; background: var(--surface-2); border-radius: 99px; overflow: hidden; margin: 8px 0 2px; cursor: pointer; position: relative; padding: 8px 0; background-clip: content-box; touch-action: none; }
-  .bar > i { display: block; height: 100%; background: var(--accent); width: 0%; transition: width .9s linear; border-radius: 99px; }
+  /* The bar is 4px to the eye and 24px to a finger: the padding is the hit
+     area, and background-clip keeps it invisible. */
+  .bar { height: 24px; padding: 10px 0; margin: 24px 0 4px; background: var(--surface); background-clip: content-box;
+         border-radius: 99px; cursor: pointer; touch-action: none; overflow: hidden; transition: padding .15s var(--ease); }
+  .bar:hover, .bar.seeking { padding: 9px 0; }
+  .bar > i { display: block; height: 100%; width: 0%; background: var(--accent); border-radius: 99px;
+             transition: width .9s linear; }
   /* While dragging, the fill has to track the finger with no easing at all. */
   .bar.seeking > i { transition: none; }
-  .bar.seeking { background-color: color-mix(in srgb, var(--surface-2) 70%, var(--accent)); }
-  /* Dimmed while the position is our own estimate rather than the speaker's. */
-  .bar > i.est { background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 55%, var(--surface-2))); }
-  .times { display: flex; justify-content: space-between; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
-  .remain { opacity: .65; }
+  /* Our own estimate rather than the speaker's report: the same ink, thinner. */
+  .bar > i.est { opacity: .55; }
+  .times { display: flex; justify-content: space-between; font-variant-numeric: tabular-nums; }
 
-  /* controls */
-  .controls { display: flex; gap: 10px; align-items: center; justify-content: center; margin-top: 16px; }
-  button {
-    font: inherit; color: var(--text); background: var(--surface-2);
-    border: 1px solid var(--line); border-radius: 10px; padding: 9px 14px;
-    cursor: pointer; transition: background .12s, border-color .12s, transform .08s;
-  }
-  button:hover { background: color-mix(in srgb, var(--accent) 14%, var(--surface-2)); border-color: var(--accent); }
-  button:active { transform: scale(.97); }
-  button:disabled { opacity: .45; cursor: default; transform: none; }
-  .primary { background: var(--accent); color: #06210f; border-color: var(--accent); font-weight: 600; min-width: 74px; }
-  .primary:hover { background: var(--accent-dim); border-color: var(--accent-dim); }
-  @media (prefers-color-scheme: light) { .primary { color: #fff; } }
+  .controls { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 16px; }
+  .controls .icon { width: 48px; height: 48px; color: var(--text); }
+  .controls .icon .i { width: 22px; height: 22px; }
+  .play { width: 60px; height: 60px; border-radius: 50%; padding: 0; }
+  .play .i { width: 24px; height: 24px; }
+  .t-fill { fill: currentColor; }
 
-  /* master volume */
-  .master { display: flex; align-items: center; gap: 12px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
-  .master input[type=range] { flex: 1; }
-  .master .vol-num { min-width: 30px; }
-  .mute { background: none; border: 1px solid var(--line); padding: 6px 10px; min-width: 40px; }
-  .mute.on { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 45%, var(--line)); }
+  .master { display: flex; align-items: center; gap: 8px; margin: 20px 0 0 -10px; }
+  .num { min-width: 28px; text-align: right; font-variant-numeric: tabular-nums; }
 
-  /* speakers */
-  h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .09em; color: var(--muted); margin: 0 0 12px; font-weight: 600; }
-  .spk { display: grid; gap: 12px; }
-  .spk-row { display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; align-items: center; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
-  .spk-row:last-child { border-bottom: 0; padding-bottom: 0; }
-  .spk-name { font-weight: 500; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-  /* The name doubles as the control for picking where playback goes. */
-  .as-target { background: none; border: 0; padding: 0; font: inherit; color: inherit; cursor: pointer; text-align: left; }
-  .as-target:hover { color: var(--accent, #4aa3ff); }
-  .spk-row.target { border-left: 3px solid var(--accent, #4aa3ff); padding-left: 9px; }
-  .spk-row.target .spk-name { color: var(--accent, #4aa3ff); }
-  .tag { font-size: 11px; color: var(--muted); border: 1px solid var(--line); border-radius: 99px; padding: 1px 8px; }
-  .tag.on { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
-  .vol { grid-column: 1 / -1; display: flex; align-items: center; gap: 12px; }
-  input[type=range] { flex: 1; accent-color: var(--accent); height: 22px; }
-  .vol-num { color: var(--muted); font-size: 13px; min-width: 26px; text-align: right; font-variant-numeric: tabular-nums; }
+  /* -- play a link ------------------------------------------------------- */
+  form.link { display: flex; gap: 8px; }
+  .hint { margin: 10px 0 0; }
+  .msg { margin: 12px 0 0; font-size: 13px; overflow-wrap: anywhere; display: none; }
+  .msg.ok, .msg.err { display: flex; gap: 8px; align-items: flex-start; }
+  .msg.ok { color: var(--muted); }
+  .msg.err { color: var(--danger); }
+  .msg .i { width: 16px; height: 16px; margin-top: 2px; }
+  .msg > div { min-width: 0; }
+  .tracks { margin: 8px 0 0; padding-left: 20px; max-height: 168px; overflow-y: auto;
+            scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
 
-  /* play form */
-  form { display: flex; gap: 10px; }
-  input[type=text] {
-    flex: 1; font: inherit; color: var(--text); background: var(--bg);
-    border: 1px solid var(--line); border-radius: 10px; padding: 11px 13px; min-width: 0;
-  }
-  input[type=text]:focus { outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent); outline-offset: 1px; border-color: transparent; }
-  .hint { color: var(--muted); font-size: 12.5px; margin-top: 10px; }
-  .msg { margin-top: 12px; font-size: 13.5px; padding: 10px 12px; border-radius: 9px; display: none; overflow-wrap: anywhere; }
-  .msg.ok { display: block; background: color-mix(in srgb, var(--accent) 12%, transparent); border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); }
-  .msg.err { display: block; background: color-mix(in srgb, var(--danger) 12%, transparent); border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent); color: var(--danger); }
-  .tracks { margin: 8px 0 0; padding-left: 18px; color: var(--muted); font-size: 13px; max-height: 168px; overflow-y: auto; }
-  .row-actions { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+  /* -- speakers ---------------------------------------------------------- */
+  .spk { display: grid; gap: 4px; }
+  .spk-row { display: grid; grid-template-columns: 1fr auto; gap: 0 12px; align-items: center;
+             padding: 10px 8px; margin: 0 -8px; border-radius: var(--radius); }
+  .spk-row.target { background: var(--surface); }
+  .pick { border: 0; padding: 0; background: none; font-weight: 500; text-align: left;
+          justify-content: flex-start; gap: 10px; min-height: 32px; }
+  .pick:hover { background: none; color: var(--accent); }
+  .pick .mark { width: 7px; height: 7px; border-radius: 50%; border: 1.5px solid var(--line); flex: none; }
+  .spk-row.target .pick .mark { background: var(--accent); border-color: var(--accent); }
+  .tags { display: flex; gap: 10px; }
+  .tag.on { color: var(--accent); }
+  .vol { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; margin-left: -10px; }
+  .row-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
-  /* playlists */
-  .pl-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
-  .pl-head h2 { margin: 0; }
-  .pl-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
-  .chip {
-    font: inherit; font-size: 13px; color: var(--text); background: var(--surface-2);
-    border: 1px solid var(--line); border-radius: 99px; padding: 5px 13px; cursor: pointer;
-  }
-  .chip.on { background: color-mix(in srgb, var(--accent) 18%, var(--surface-2)); border-color: var(--accent); }
-  .chip .n { color: var(--muted); margin-left: 6px; font-variant-numeric: tabular-nums; }
-  .pl-empty { color: var(--muted); font-size: 13.5px; }
-  .pl-items { display: grid; gap: 2px; margin: 4px 0 0; }
-  .pl-item { display: grid; grid-template-columns: auto 1fr auto auto; gap: 10px; align-items: center; padding: 7px 8px; border-radius: 8px; }
-  .pl-item:hover { background: var(--surface-2); }
-  .pl-num { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; min-width: 18px; text-align: right; }
-  .pl-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .pl-title small { color: var(--muted); display: block; font-size: 12px; }
-  .pl-len { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
-  .icon { background: none; border: 0; color: var(--muted); padding: 3px 6px; cursor: pointer; border-radius: 6px; font-size: 13px; }
-  .icon:hover { background: var(--line); color: var(--text); border-color: transparent; }
-  .pl-total { color: var(--muted); font-size: 12.5px; margin-top: 10px; }
+  /* -- playlists --------------------------------------------------------- */
+  .tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
+  .chip { border-radius: 99px; padding: 5px 12px; font-size: 13px; }
+  .chip[aria-pressed=true] { background: var(--text); color: var(--bg); border-color: var(--text); }
+  .chip .n { opacity: .7; font-variant-numeric: tabular-nums; }
+  .empty { margin: 0; }
+  .items { display: grid; margin: 0 -8px; }
+  .item { display: grid; grid-template-columns: 24px 1fr auto auto; gap: 8px; align-items: center;
+          padding: 4px 0 4px 8px; border-radius: 8px; }
+  .item:hover { background: var(--surface); }
+  .item .icon { width: 32px; height: 32px; }
+  .item .icon .i { width: 16px; height: 16px; }
+  .pos { text-align: right; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .name small { display: block; font-size: 13px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; }
+  .len { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .acts { display: flex; }
+  .total { margin: 12px 0 16px; }
 
-  /* account */
-  .acct-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
-  .acct-head h2 { margin: 0; }
-  .acct-form { display: grid; gap: 10px; }
-  .acct-form .pair { display: flex; gap: 10px; flex-wrap: wrap; }
-  .acct-form input { flex: 1; min-width: 190px; }
-  input[type=password] {
-    font: inherit; color: var(--text); background: var(--bg);
-    border: 1px solid var(--line); border-radius: 10px; padding: 11px 13px;
-  }
-  input[type=password]:focus, input[type=email]:focus { outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent); outline-offset: 1px; border-color: transparent; }
-  input[type=email] {
-    font: inherit; color: var(--text); background: var(--bg);
-    border: 1px solid var(--line); border-radius: 10px; padding: 11px 13px;
-  }
-  .warn { color: var(--muted); font-size: 12.5px; border-left: 2px solid color-mix(in srgb, var(--danger) 50%, transparent); padding-left: 10px; }
-  .srcs { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
-  .src { font-size: 12px; border: 1px solid var(--line); border-radius: 99px; padding: 3px 11px; color: var(--muted); }
-  .src.on { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
+  /* -- account: rarely needed, so folded away ---------------------------- */
+  summary { display: flex; align-items: center; justify-content: space-between; gap: 12px;
+            cursor: pointer; list-style: none; border-radius: 6px; }
+  summary::-webkit-details-marker { display: none; }
+  summary h2::after { content: ""; display: inline-block; width: 6px; height: 6px; margin-left: 10px;
+                      border-right: 1.5px solid var(--muted); border-bottom: 1.5px solid var(--muted);
+                      transform: translateY(-3px) rotate(45deg); transition: transform .15s var(--ease); }
+  details[open] summary h2::after { transform: translateY(0) rotate(-135deg); }
+  .acct-body { margin-top: 16px; display: grid; gap: 12px; }
+  .acct-form { display: grid; gap: 12px; margin: 0; }
+  .acct-form .pair { display: flex; gap: 8px; flex-wrap: wrap; }
+  .acct-form input { min-width: 180px; }
+  .srcs { display: flex; gap: 6px 14px; flex-wrap: wrap; }
+  .srcs:empty { display: none; }
+  .src { font-size: 13px; color: var(--muted); display: inline-flex; align-items: center; gap: 4px; }
+  .src.on { color: var(--text); }
+  .src .i { width: 14px; height: 14px; color: var(--accent); }
 
   @media (max-width: 460px) {
-    .np { grid-template-columns: 1fr; }
-    .art { width: 100%; height: 190px; }
+    .np { grid-template-columns: 80px 1fr; gap: 16px; }
+    .art { width: 80px; height: 80px; }
+    .title { font-size: 17px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::after { transition: none !important; }
   }
 </style>
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-play" viewBox="0 0 24 24"><path class="t-fill" d="M8 5.5v13l10.5-6.5z"/></symbol>
+  <symbol id="i-pause" viewBox="0 0 24 24"><path class="t-fill" d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z"/></symbol>
+  <symbol id="i-prev" viewBox="0 0 24 24"><path class="t-fill" d="M18 6.5v11L10 12z"/><path d="M6.5 6v12"/></symbol>
+  <symbol id="i-next" viewBox="0 0 24 24"><path class="t-fill" d="M6 6.5v11l8-5.5z"/><path d="M17.5 6v12"/></symbol>
+  <symbol id="i-stop" viewBox="0 0 24 24"><path class="t-fill" d="M7 7h10v10H7z"/></symbol>
+  <symbol id="i-vol" viewBox="0 0 24 24"><path d="M4 9.5h3L11.5 6v12L7 14.5H4z"/><path d="M15 9.5a3.5 3.5 0 0 1 0 5M17.5 7a7 7 0 0 1 0 10"/></symbol>
+  <symbol id="i-muted" viewBox="0 0 24 24"><path d="M4 9.5h3L11.5 6v12L7 14.5H4z"/><path d="M15.5 9.5l5 5M20.5 9.5l-5 5"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-up" viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 5v14M6 13l6 6 6-6"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3.5l9.5 16.5h-19z"/><path d="M12 10v4.5M12 17.5v.01"/></symbol>
+  <symbol id="i-note" viewBox="0 0 24 24"><path d="M9 17.5V6l10-2v11.5"/><circle cx="6.5" cy="17.5" r="2.5"/><circle cx="16.5" cy="15.5" r="2.5"/></symbol>
+</svg>
+
 <div class="wrap">
 
-  <header>
+  <header class="top">
     <h1>heos-ui</h1>
-    <span class="conn"><span class="dot" id="dot"></span><span id="conn">connecting…</span></span>
+    <span class="status"><span class="dot" id="dot"></span><span id="conn">Connecting…</span></span>
   </header>
 
-  <section class="card">
+  <section class="now" aria-label="Now playing">
     <div class="np">
-      <div class="art" id="art">♪</div>
+      <div class="art" id="art"><svg class="i"><use href="#i-note"/></svg></div>
       <div>
         <p class="title" id="title">Nothing playing</p>
         <p class="artist" id="artist"></p>
-        <p class="where" id="where"></p>
-        <p class="where" id="quality"></p>
-        <p class="cue" id="cue"></p>
+        <p class="meta where" id="where"></p>
       </div>
     </div>
     <div class="bar" id="bar" title="Drag to move within the track"><i id="fill"></i></div>
     <div class="times">
       <span id="pos">0:00</span>
-      <span id="remain" class="remain"></span>
+      <span id="remain"></span>
       <span id="dur"></span>
     </div>
     <div class="controls">
-      <button id="prev" title="Previous">⏮</button>
-      <button class="primary" id="toggle">Play</button>
-      <button id="next" title="Next">⏭</button>
-      <button id="stop" title="Stop">⏹</button>
-      <button id="identify" title="Listen to what is playing and name it">Identify track</button>
+      <button class="icon" id="prev" aria-label="Previous"><svg class="i"><use href="#i-prev"/></svg></button>
+      <button class="primary play" id="toggle" aria-label="Play"><svg class="i"><use href="#i-play"/></svg></button>
+      <button class="icon" id="next" aria-label="Next"><svg class="i"><use href="#i-next"/></svg></button>
+      <button class="icon" id="stop" aria-label="Stop"><svg class="i"><use href="#i-stop"/></svg></button>
     </div>
     <div class="master">
-      <button class="mute" id="mute" title="Mute">🔊</button>
+      <button class="icon" id="mute" aria-label="Mute" aria-pressed="false"><svg class="i"><use href="#i-vol"/></svg></button>
       <input type="range" id="masterVol" min="0" max="100" value="0" aria-label="Volume">
-      <span class="vol-num" id="masterNum">—</span>
+      <span class="num" id="masterNum">—</span>
     </div>
   </section>
 
-  <section class="card">
-    <h2>Play a link</h2>
-    <form id="form">
-      <input type="text" id="url" placeholder="SoundCloud track or set, audio URL…" autocomplete="off" spellcheck="false">
+  <section aria-labelledby="h-link">
+    <div class="head"><h2 id="h-link">Play a link</h2></div>
+    <form class="link" id="form">
+      <input type="text" id="url" placeholder="Paste a link" aria-label="Link to play" autocomplete="off" spellcheck="false">
       <button class="primary" type="submit" id="go">Play</button>
-      <button type="button" id="save" title="Add to the selected playlist">＋</button>
+      <button type="button" id="save" aria-label="Add to the open playlist" title="Add to the open playlist"><svg class="i"><use href="#i-plus"/></svg></button>
     </form>
-    <p class="hint">Single tracks and <code>/sets/</code> playlists. Long tracks stream through the local proxy, so leave this machine on.</p>
-    <div class="msg" id="msg"></div>
+    <p class="hint">Single tracks only: sets and playlists can't be played yet.</p>
+    <div class="msg" id="msg" role="status" aria-live="polite"></div>
   </section>
 
-  <section class="card">
-    <div class="pl-head">
-      <h2>Playlists</h2>
-      <button id="newList">New playlist</button>
+  <section aria-labelledby="h-spk">
+    <div class="head">
+      <h2 id="h-spk">Speakers</h2>
+      <div class="row-actions">
+        <button class="ghost" id="groupAll" disabled>Group all</button>
+        <button class="ghost" id="ungroup" disabled>Ungroup</button>
+      </div>
     </div>
-    <div class="pl-tabs" id="plTabs"></div>
+    <div class="spk" id="spk"></div>
+  </section>
+
+  <section aria-labelledby="h-pl">
+    <div class="head">
+      <h2 id="h-pl">Playlists</h2>
+      <button class="ghost" id="newList"><svg class="i"><use href="#i-plus"/></svg>New</button>
+    </div>
+    <div class="tabs" id="plTabs"></div>
     <div id="plBody"></div>
   </section>
 
-  <section class="card">
-    <h2>Speakers</h2>
-    <div class="spk" id="spk"></div>
-    <div class="row-actions">
-      <button id="groupAll">Group all</button>
-      <button id="ungroup">Ungroup</button>
+  <details id="acct">
+    <summary><h2>HEOS account</h2><span class="meta" id="acctState">…</span></summary>
+    <div class="acct-body">
+      <div id="acctBody"></div>
+      <div class="srcs" id="srcs"></div>
+      <div class="msg" id="acctMsg" role="status" aria-live="polite"></div>
     </div>
-  </section>
-
-  <section class="card">
-    <div class="acct-head">
-      <h2>HEOS account</h2>
-      <span class="conn" id="acctState">…</span>
-    </div>
-    <div id="acctBody"></div>
-    <div class="srcs" id="srcs"></div>
-    <div class="msg" id="acctMsg"></div>
-  </section>
+  </details>
 
 </div>
 
@@ -276,6 +324,18 @@ const fmt = (ms) => {
            : `${m}:${String(sec).padStart(2,"0")}`;
 };
 
+const icon = (name) => `<svg class="i"><use href="#i-${name}"/></svg>`;
+
+function iconButton(name, label, onClick) {
+  const b = document.createElement("button");
+  b.className = "icon";
+  b.innerHTML = icon(name);
+  b.setAttribute("aria-label", label);
+  b.title = label;
+  b.addEventListener("click", onClick);
+  return b;
+}
+
 async function api(path, body) {
   const res = await fetch(path, body ? {
     method: "POST",
@@ -296,8 +356,6 @@ function renderNow(now, target) {
   $("title").textContent = title || "Nothing playing";
   $("artist").textContent = artist;
   $("where").textContent = target ? `on ${target.label}` : "";
-  // Reported by the speaker's UPnP service; the HEOS protocol has no such field.
-  $("quality").textContent = now.quality || "";
 
   // The firmware sends no artwork for a URL stream; use the one we resolved.
   const image = now.image || (now.is_url_stream ? now.known_image : null);
@@ -311,7 +369,7 @@ function renderNow(now, target) {
     if ($("art").src !== image) $("art").src = image;
   } else if (art.tagName === "IMG") {
     const div = document.createElement("div");
-    div.className = "art"; div.id = "art"; div.textContent = "♪";
+    div.className = "art"; div.id = "art"; div.innerHTML = icon("note");
     art.replaceWith(div);
   }
 
@@ -333,8 +391,16 @@ function renderNow(now, target) {
     $("fill").classList.remove("est");
     $("dur").textContent = "";
     $("remain").textContent = "";
-    $("pos").textContent = playing ? "live stream" : "";
+    $("pos").textContent = playing ? "Live stream" : "";
   }
+}
+
+function setMute(button, muted) {
+  button.innerHTML = icon(muted ? "muted" : "vol");
+  button.classList.toggle("on", !!muted);
+  button.setAttribute("aria-pressed", muted ? "true" : "false");
+  button.setAttribute("aria-label", muted ? "Unmute" : "Mute");
+  button.title = muted ? "Unmute" : "Mute";
 }
 
 function renderMaster(target) {
@@ -346,15 +412,16 @@ function renderMaster(target) {
     slider.value = target.volume;
     num.textContent = target.volume;
   }
-  const mute = $("mute");
-  mute.textContent = target.muted ? "🔇" : "🔊";
-  mute.classList.toggle("on", !!target.muted);
-  mute.title = target.muted ? "Unmute" : "Mute";
+  setMute($("mute"), target.muted);
 }
 
 function renderSpeakers(players, target) {
   const box = $("spk");
   box.innerHTML = "";
+  if (!players.length) {
+    box.innerHTML = `<p class="empty">No speakers answered. Check that they are on and on this network.</p>`;
+    return;
+  }
   for (const p of players) {
     const row = document.createElement("div");
     row.className = "spk-row";
@@ -364,8 +431,10 @@ function renderSpeakers(players, target) {
     if (isTarget) row.classList.add("target");
 
     const name = document.createElement("button");
-    name.className = "spk-name as-target";
-    name.textContent = p.name;
+    name.className = "pick";
+    name.setAttribute("aria-pressed", isTarget ? "true" : "false");
+    name.innerHTML = `<span class="mark"></span>`;
+    name.append(p.name);
     name.title = isTarget && target.pinned
       ? "Playing here — click to go back to choosing automatically"
       : "Play here";
@@ -378,66 +447,76 @@ function renderSpeakers(players, target) {
       } catch (e) { flash(e.message, true); }
       refresh();
     });
+
+    const tags = document.createElement("span");
+    tags.className = "tags";
     if (p.group) {
       const tag = document.createElement("span");
-      tag.className = "tag" + (p.is_leader ? " on" : "");
+      tag.className = "tag";
       tag.textContent = p.is_leader ? `${p.group} · leader` : p.group;
-      name.appendChild(tag);
+      tags.appendChild(tag);
     }
     const st = document.createElement("span");
     st.className = "tag" + (p.state === "play" ? " on" : "");
-    st.textContent = p.state;
+    st.textContent = {play: "Playing", pause: "Paused", stop: "Stopped"}[p.state] || p.state;
+    tags.appendChild(st);
 
     const vol = document.createElement("div");
     vol.className = "vol";
     const slider = document.createElement("input");
     slider.type = "range"; slider.min = 0; slider.max = 100; slider.value = p.volume;
+    slider.setAttribute("aria-label", `${p.name} volume`);
     const num = document.createElement("span");
-    num.className = "vol-num"; num.textContent = p.volume;
+    num.className = "num"; num.textContent = p.volume;
     slider.addEventListener("input", () => { num.textContent = slider.value; busyVolume = Date.now(); });
     slider.addEventListener("change", async () => {
       busyVolume = Date.now();
       try { await api("/api/volume", {player: String(p.id), level: Number(slider.value)}); }
       catch (e) { flash(e.message, true); }
     });
-    const rowMute = document.createElement("button");
-    rowMute.className = "icon" + (p.muted ? " on" : "");
-    rowMute.textContent = p.muted ? "🔇" : "🔊";
-    rowMute.title = p.muted ? "Unmute" : "Mute";
-    rowMute.addEventListener("click", async () => {
+    const rowMute = iconButton("vol", "Mute", async () => {
       try { await api("/api/mute", {player: String(p.id), state: "toggle"}); }
       catch (e) { flash(e.message, true); }
       refresh();
     });
+    setMute(rowMute, p.muted);
 
     vol.append(rowMute, slider, num);
-
-    row.append(name, st, vol);
+    row.append(name, tags, vol);
     box.appendChild(row);
   }
 }
 
-function flash(text, isError) {
-  const el = $("msg");
+function showMessage(el, text, isError) {
   el.className = "msg " + (isError ? "err" : "ok");
-  el.textContent = text;
+  el.innerHTML = isError ? icon("alert") : "";
+  const body = document.createElement("div");
+  body.textContent = text;
+  el.appendChild(body);
+  return body;
 }
+
+function flash(text, isError) { return showMessage($("msg"), text, isError); }
 
 async function refresh() {
   try {
     const data = await api("/api/state");
     state = data;
     $("dot").className = "dot live";
-    $("conn").textContent = data.target ? data.target.label : "connected";
-    renderNow(data.now, data.target);
+    $("conn").textContent = "Connected";
+    // No speaker to show: nothing playing, and the speaker list says why.
+    renderNow(data.now || {}, data.target);
     renderMaster(data.target);
     // Skip re-rendering sliders while the user is dragging one.
     if (Date.now() - busyVolume > 1500) renderSpeakers(data.players, data.target);
     const playing = data.players.some(p => p.state === "play");
-    $("toggle").textContent = playing ? "Pause" : "Play";
+    $("toggle").innerHTML = icon(playing ? "pause" : "play");
+    $("toggle").setAttribute("aria-label", playing ? "Pause" : "Play");
+    $("groupAll").disabled = data.players.length < 2;
+    $("ungroup").disabled = !data.groups.length;
   } catch (e) {
     $("dot").className = "dot";
-    $("conn").textContent = "disconnected";
+    $("conn").textContent = "Disconnected";
   }
 }
 
@@ -520,33 +599,6 @@ $("bar").addEventListener("pointerup", async (ev) => {
 
 $("bar").addEventListener("pointercancel", endSeekDrag);
 
-// Fetching a sample and looking it up takes a few seconds, so the button has to
-// show it is working: an unresponsive one reads as broken.
-$("identify").addEventListener("click", async () => {
-  const button = $("identify");
-  if (button.disabled) return;
-  button.disabled = true;
-  button.textContent = "Listening…";
-  try {
-    // Send the position the page is showing: it already accounts for the
-    // estimated clock, and re-deriving it server-side could disagree.
-    const at = state && state.now ? state.now.position : null;
-    const out = await api("/api/identify", at == null ? {} : {position: at});
-    if (out.found) {
-      $("cue").textContent = "♪ " + out.describe;
-      flash("Identified: " + out.describe, false);
-    } else {
-      $("cue").textContent = "";
-      flash("Could not identify this one — likely a transition or unreleased.", true);
-    }
-  } catch (e) {
-    flash(e.message, true);
-  } finally {
-    button.disabled = false;
-    button.textContent = "Identify track";
-  }
-});
-
 $("form").addEventListener("submit", async (ev) => {
   ev.preventDefault();
   const url = $("url").value.trim();
@@ -557,13 +609,13 @@ $("form").addEventListener("submit", async (ev) => {
   flash("Resolving…", false);
   try {
     const res = await api("/api/play", {url});
-    let text = `${res.title}${res.artist ? " — " + res.artist : ""} → ${res.target} (${res.detail})`;
-    flash(text, false);
+    const text = `${res.title}${res.artist ? " — " + res.artist : ""} → ${res.target} (${res.detail})`;
+    const body = flash(text, false);
     if (res.tracks && res.tracks.length) {
       const ol = document.createElement("ol");
       ol.className = "tracks";
       for (const t of res.tracks) { const li = document.createElement("li"); li.textContent = t; ol.appendChild(li); }
-      $("msg").appendChild(ol);
+      body.appendChild(ol);
     }
     $("url").value = "";
   } catch (e) {
@@ -597,41 +649,46 @@ function renderPlaylists() {
   tabs.innerHTML = "";
   for (const pl of playlists) {
     const chip = document.createElement("button");
-    chip.className = "chip" + (pl.name === selected ? " on" : "");
-    chip.innerHTML = `${escapeHtml(pl.name)}<span class="n">${pl.items.length}</span>`;
+    chip.className = "chip";
+    chip.setAttribute("aria-pressed", pl.name === selected ? "true" : "false");
+    chip.textContent = pl.name + " ";
+    const n = document.createElement("span");
+    n.className = "n"; n.textContent = pl.items.length;
+    chip.appendChild(n);
     chip.addEventListener("click", () => {
       selected = (selected === pl.name) ? null : pl.name;
       renderPlaylists();
     });
     tabs.appendChild(chip);
   }
+  tabs.hidden = !playlists.length;
 
   const body = $("plBody");
   body.innerHTML = "";
   if (!playlists.length) {
-    body.innerHTML = `<p class="pl-empty">No playlists yet. Create one, then use ＋ to add whatever is in the box above.</p>`;
+    body.innerHTML = `<p class="empty">No playlists yet. Create one, then add links to it with the + next to Play.</p>`;
     return;
   }
   const pl = playlists.find(p => p.name === selected);
   if (!pl) {
-    body.innerHTML = `<p class="pl-empty">Pick a playlist to see its tracks.</p>`;
+    body.innerHTML = `<p class="empty">Pick a playlist to see its tracks.</p>`;
     return;
   }
 
   if (!pl.items.length) {
-    body.innerHTML = `<p class="pl-empty">Empty. Paste a link above and press ＋.</p>`;
+    body.innerHTML = `<p class="empty">Empty. Paste a link above and press +.</p>`;
   } else {
     const list = document.createElement("div");
-    list.className = "pl-items";
+    list.className = "items";
     pl.items.forEach((item, index) => {
       const row = document.createElement("div");
-      row.className = "pl-item";
+      row.className = "item";
 
       const num = document.createElement("span");
-      num.className = "pl-num"; num.textContent = index + 1;
+      num.className = "pos"; num.textContent = index + 1;
 
       const title = document.createElement("div");
-      title.className = "pl-title";
+      title.className = "name";
       title.textContent = item.title;
       if (item.artist) {
         const small = document.createElement("small");
@@ -640,20 +697,16 @@ function renderPlaylists() {
       }
 
       const len = document.createElement("span");
-      len.className = "pl-len";
+      len.className = "len";
       len.textContent = item.duration ? fmt(item.duration * 1000) : "";
 
       const actions = document.createElement("span");
-      for (const [glyph, hint, fn] of [
-        ["↑", "Move up", () => move(pl.name, index, index - 1)],
-        ["↓", "Move down", () => move(pl.name, index, index + 1)],
-        ["✕", "Remove", () => removeItem(pl.name, index)],
-      ]) {
-        const b = document.createElement("button");
-        b.className = "icon"; b.textContent = glyph; b.title = hint;
-        b.addEventListener("click", fn);
-        actions.appendChild(b);
-      }
+      actions.className = "acts";
+      const up = iconButton("up", "Move up", () => move(pl.name, index, index - 1));
+      up.disabled = index === 0;
+      const down = iconButton("down", "Move down", () => move(pl.name, index, index + 1));
+      down.disabled = index === pl.items.length - 1;
+      actions.append(up, down, iconButton("x", "Remove", () => removeItem(pl.name, index)));
 
       row.append(num, title, len, actions);
       list.appendChild(row);
@@ -661,7 +714,7 @@ function renderPlaylists() {
     body.appendChild(list);
 
     const total = document.createElement("p");
-    total.className = "pl-total";
+    total.className = "meta total";
     total.textContent = `${pl.items.length} tracks · ${fmt(pl.duration * 1000)}`;
     body.appendChild(total);
   }
@@ -671,12 +724,9 @@ function renderPlaylists() {
   const play = document.createElement("button");
   play.className = "primary"; play.textContent = "Play";
   play.disabled = !pl.items.length;
-  play.addEventListener("click", () => playPlaylist(pl.name, false));
-  const shuffle = document.createElement("button");
-  shuffle.textContent = "Shuffle";
-  shuffle.disabled = !pl.items.length;
-  shuffle.addEventListener("click", () => playPlaylist(pl.name, true));
+  play.addEventListener("click", () => playPlaylist(pl.name));
   const del = document.createElement("button");
+  del.className = "ghost";
   del.textContent = "Delete";
   del.addEventListener("click", async () => {
     if (!confirm(`Delete "${pl.name}" and its ${pl.items.length} tracks?`)) return;
@@ -684,14 +734,8 @@ function renderPlaylists() {
     selected = null;
     await loadPlaylists();
   });
-  actions.append(play, shuffle, del);
+  actions.append(play, del);
   body.appendChild(actions);
-}
-
-function escapeHtml(text) {
-  const d = document.createElement("div");
-  d.textContent = text;
-  return d.innerHTML;
 }
 
 async function loadPlaylists() {
@@ -700,7 +744,7 @@ async function loadPlaylists() {
     if (selected && !playlists.some(p => p.name === selected)) selected = null;
     if (!selected && playlists.length === 1) selected = playlists[0].name;
     renderPlaylists();
-  } catch (e) { /* the connection banner already says it */ }
+  } catch (e) { /* the connection status already says it */ }
 }
 
 async function move(name, index, to) {
@@ -714,10 +758,10 @@ async function removeItem(name, index) {
   await loadPlaylists();
 }
 
-async function playPlaylist(name, shuffle) {
+async function playPlaylist(name) {
   flash("Queueing…", false);
   try {
-    const res = await api("/api/playlists/play", {name, shuffle});
+    const res = await api("/api/playlists/play", {name});
     flash(`${res.title} → ${res.target} (${res.detail})`, false);
   } catch (e) {
     flash(e.message, true);
@@ -765,8 +809,8 @@ function renderAccount() {
   if (!account) { $("acctState").textContent = "…"; return; }
 
   $("acctState").textContent = account.signed_in
-    ? `signed in as ${account.username}`
-    : "not signed in";
+    ? `Signed in as ${account.username}`
+    : "Not signed in";
 
   if (account.signed_in) {
     const out = document.createElement("button");
@@ -780,18 +824,17 @@ function renderAccount() {
     });
     body.appendChild(out);
   } else {
-    // Signing in is what turns TIDAL and SoundCloud from listed to playable.
     const form = document.createElement("form");
     form.className = "acct-form";
     form.innerHTML = `
-      <p class="pl-empty">Sign in to enable the streaming services linked to your
-      HEOS account — TIDAL and SoundCloud become playable from here.</p>
+      <p class="empty">Sign in with your HEOS account, the same one the HEOS app
+      uses, to see which of its streaming services the speakers can play.</p>
       <div class="pair">
-        <input type="email" id="acctUser" placeholder="HEOS account email" autocomplete="username">
-        <input type="password" id="acctPass" placeholder="Password" autocomplete="current-password">
+        <input type="email" id="acctUser" placeholder="Email" aria-label="HEOS account email" autocomplete="username">
+        <input type="password" id="acctPass" placeholder="Password" aria-label="Password" autocomplete="current-password">
         <button class="primary" type="submit" id="acctGo">Sign in</button>
       </div>
-      <p class="warn">The HEOS protocol sends credentials in clear text over port
+      <p class="hint">The HEOS protocol sends credentials in clear text over port
       1255, and this page is served over plain HTTP on your network.</p>`;
     form.addEventListener("submit", async (ev) => {
       ev.preventDefault();
@@ -821,23 +864,20 @@ function renderAccount() {
   for (const src of account.sources || []) {
     const chip = document.createElement("span");
     chip.className = "src" + (src.available ? " on" : "");
-    chip.textContent = src.available ? `${src.name} ✓` : src.name;
-    if (src.account) chip.title = src.account;
+    if (src.available) chip.innerHTML = icon("check");
+    chip.append(src.name);
+    chip.title = src.available ? (src.account || "Available") : "Not available";
     srcs.appendChild(chip);
   }
 }
 
-function acctFlash(text, isError) {
-  const el = $("acctMsg");
-  el.className = "msg " + (isError ? "err" : "ok");
-  el.textContent = text;
-}
+function acctFlash(text, isError) { showMessage($("acctMsg"), text, isError); }
 
 async function loadAccount() {
   try {
     account = await api("/api/account");
     renderAccount();
-  } catch (e) { /* the connection banner already says it */ }
+  } catch (e) { /* the connection status already says it */ }
 }
 
 
