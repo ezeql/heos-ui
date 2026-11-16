@@ -186,18 +186,22 @@ func (s *Server) pinnedTarget() string {
 	return s.target
 }
 
-// resolveRequestTarget resolves the speaker a request acts on: one named in
-// the request wins; otherwise whatever the page picked.
-func (s *Server) resolveRequestTarget(data map[string]any, players []playerView, groups []groupView) (target, error) {
+// requestTarget snapshots the system and resolves the speaker a request acts
+// on: one named in the request wins; otherwise whatever the page picked.
+func (s *Server) requestTarget(ctx context.Context, data map[string]any) (target, []playerView, error) {
+	players, groups, err := s.snapshot(ctx)
+	if err != nil {
+		return target{}, nil, err
+	}
 	spec := stringField(data, "player")
 	if spec == "" {
 		spec = s.pinnedTarget()
 	}
 	resolved, err := resolveTarget(players, groups, spec)
 	if err != nil {
-		return target{}, badRequest("%s", err.Error())
+		return target{}, nil, badRequest("%s", err.Error())
 	}
-	return resolved, nil
+	return resolved, players, nil
 }
 
 // Serve runs the web UI until the context ends.
