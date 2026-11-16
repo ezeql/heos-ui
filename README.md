@@ -8,6 +8,27 @@ commands know which track of a DJ set is playing.
 State lives in `~/.config/heoscli/`, in the same files and formats the Python
 [heoscli](https://github.com/ezeql/heoscli) uses, so both tools can share it.
 
+## Install
+
+```sh
+brew install ezeql/personal/heos-ui
+heos-ui    # then open http://localhost:8080
+```
+
+The formula installs the three commands below as `heos-ui`, `heos-now` and
+`heos-tracklist`, with ffmpeg, which most SoundCloud tracks now need (see
+**Web UI**). yt-dlp is optional: `brew install yt-dlp` for links from other
+sites. From source, `go install github.com/ezeql/heos-ui/cmd/...@latest`
+installs them as `ui`, `now` and `tracklist`.
+
+On macOS, two settings decide whether it works at all:
+
+- **Local Network** (System Settings → Privacy & Security): allow the terminal
+  you run it from, or every connection to a speaker fails with "no route to
+  host" and discovery finds nothing.
+- **Firewall**, when it is on: allow incoming connections for `heos-ui`. The
+  speaker fetches converted SoundCloud tracks from it.
+
 ## Commands
 
 | Command | What it does |
