@@ -47,7 +47,7 @@ func TestALinkNeverReachesYtdlpAsAnOption(t *testing.T) {
 	if err := os.WriteFile(fake, []byte(script), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	t.Setenv("HEOSCLI_YTDLP", fake)
+	t.Setenv("HEOS_UI_YTDLP", fake)
 
 	_, _ = resolveSpec(t.Context(), "--version")
 	raw, err := os.ReadFile(argv)

@@ -35,9 +35,9 @@ type mediaComment struct {
 type extractor func(ctx context.Context, spec string, withComments bool) (*mediaInfo, error)
 
 func ytdlpExtract(ctx context.Context, spec string, withComments bool) (*mediaInfo, error) {
-	// HEOSCLI_YTDLP points at a specific binary, e.g. one inside a
+	// HEOS_UI_YTDLP points at a specific binary, e.g. one inside a
 	// virtualenv; otherwise PATH decides.
-	binary := os.Getenv("HEOSCLI_YTDLP")
+	binary := os.Getenv("HEOS_UI_YTDLP")
 	if binary == "" {
 		found, err := exec.LookPath("yt-dlp")
 		if err != nil {
