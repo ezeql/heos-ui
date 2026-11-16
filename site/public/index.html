@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
 <title>heos-ui: a web UI for Denon/HEOS speakers</title>
-<meta name="description" content="Paste a SoundCloud link, pick a Denon/HEOS speaker, and it plays. A small web UI and two commands, installed with Homebrew.">
+<meta name="description" content="An app with a web interface for Denon/HEOS speakers: what is playing, transport, volume, grouping and seek, from any browser on your network. Installed with Homebrew.">
 <meta property="og:title" content="heos-ui">
-<meta property="og:description" content="Paste a SoundCloud link, pick a Denon/HEOS speaker, and it plays.">
+<meta property="og:description" content="Control your Denon/HEOS speakers from any browser on your network.">
 <meta property="og:image" content="https://heosui.chech.app/app-light.webp">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='5' fill='%23a8530a'/%3E%3C/svg%3E">
 <style>
@@ -109,10 +109,10 @@
 <main>
   <div class="wrap hero">
     <div>
-      <h1>Play a SoundCloud link on your Denon speakers.</h1>
-      <p class="lede">heos-ui is a small web UI for Denon/HEOS speakers. Paste a link, pick the
-        speaker, and it plays, including the SoundCloud tracks a speaker can no longer
-        fetch by itself.</p>
+      <h1>Control your HEOS speakers from the browser.</h1>
+      <p class="lede">heos-ui is an app with a web interface for Denon/HEOS speakers. See what
+        is playing, play, pause and skip, set the volume, group speakers and move within a
+        track, from this machine or any phone on your network.</p>
       <div class="install">
         <code id="cmd">brew install ezeql/personal/heos-ui</code>
         <button class="copy" id="copy" type="button">Copy</button>
@@ -133,20 +133,24 @@
     <h2 id="what">What it does</h2>
     <ul class="features">
       <li>
+        <h3>Controls playback</h3>
+        <p>What is playing, with its artwork and position. Play, pause, skip and stop, on one
+          speaker or a whole group.</p>
+      </li>
+      <li>
+        <h3>Every speaker on one page</h3>
+        <p>No IP address to type: it finds them. Pick which one the controls act on, set the
+          volume and mute for the group or each speaker, and group or ungroup them.</p>
+      </li>
+      <li>
+        <h3>Seeks within a track</h3>
+        <p>Drag the bar to move within what is playing, which the HEOS protocol alone cannot
+          do; it goes through the speaker's own UPnP renderer.</p>
+      </li>
+      <li>
         <h3>Plays links</h3>
-        <p>SoundCloud tracks, direct audio URLs, and anything yt-dlp can read. Most SoundCloud
-          tracks are HLS only now, which the speaker will not follow, so ffmpeg converts them
-          on your machine as they play.</p>
-      </li>
-      <li>
-        <h3>Finds the speakers</h3>
-        <p>No IP address to type. Pick which speaker plays, set the volume, mute, and group
-          or ungroup them from the same page.</p>
-      </li>
-      <li>
-        <h3>Seeks within a set</h3>
-        <p>The position comes from the speaker itself, and dragging the bar moves within the
-          track, which the HEOS protocol alone cannot do.</p>
+        <p>SoundCloud tracks, direct audio URLs, and anything yt-dlp can read. SoundCloud
+          tracks the speaker cannot fetch by itself are converted on your machine by ffmpeg.</p>
       </li>
       <li>
         <h3>Knows the track inside a DJ set</h3>
