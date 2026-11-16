@@ -41,7 +41,7 @@ func usable(source string) *Tracklist {
 func TestTheFirstUsableSourceWins(t *testing.T) {
 	t.Parallel()
 	second := &fakeProvider{name: "second", supports: true, result: usable("second")}
-	found := Resolve(context.Background(), "https://example.com/set",
+	found, _ := Find(context.Background(), "https://example.com/set",
 		WithProviders(
 			&fakeProvider{name: "first", supports: true, result: usable("first")},
 			second,
@@ -56,7 +56,7 @@ func TestTheFirstUsableSourceWins(t *testing.T) {
 
 func TestAProviderThatFailsIsSkipped(t *testing.T) {
 	t.Parallel()
-	found := Resolve(context.Background(), "https://example.com/set",
+	found, _ := Find(context.Background(), "https://example.com/set",
 		WithProviders(
 			&fakeProvider{name: "broken", supports: true, err: errors.New("boom")},
 			&fakeProvider{name: "working", supports: true, result: usable("working")},
@@ -69,7 +69,7 @@ func TestAProviderThatFailsIsSkipped(t *testing.T) {
 func TestAThinResultIsNotGoodEnough(t *testing.T) {
 	t.Parallel()
 	thin := &Tracklist{Cues: []Cue{{Start: 0, Title: "Only"}}, Source: "thin"}
-	found := Resolve(context.Background(), "https://example.com/set",
+	found, _ := Find(context.Background(), "https://example.com/set",
 		WithProviders(
 			&fakeProvider{name: "thin", supports: true, result: thin},
 			&fakeProvider{name: "full", supports: true, result: usable("full")},
@@ -82,7 +82,7 @@ func TestAThinResultIsNotGoodEnough(t *testing.T) {
 func TestAProviderThatDoesNotHandleThisLinkIsNotCalled(t *testing.T) {
 	t.Parallel()
 	other := &fakeProvider{name: "other", supports: false, result: usable("other")}
-	Resolve(context.Background(), "https://example.com/set", WithProviders(other))
+	Find(context.Background(), "https://example.com/set", WithProviders(other))
 	if other.calls != 0 {
 		t.Error("unsupported provider was called")
 	}
@@ -90,7 +90,7 @@ func TestAProviderThatDoesNotHandleThisLinkIsNotCalled(t *testing.T) {
 
 func TestNoSourceHasIt(t *testing.T) {
 	t.Parallel()
-	if found := Resolve(context.Background(), "https://example.com/set",
+	if found, _ := Find(context.Background(), "https://example.com/set",
 		WithProviders(&fakeProvider{name: "empty", supports: true})); found != nil {
 		t.Errorf("found = %+v", found)
 	}
@@ -98,7 +98,7 @@ func TestNoSourceHasIt(t *testing.T) {
 
 func TestEverythingFailingIsStillJustNil(t *testing.T) {
 	t.Parallel()
-	found := Resolve(context.Background(), "https://example.com/set",
+	found, _ := Find(context.Background(), "https://example.com/set",
 		WithProviders(
 			&fakeProvider{name: "a", supports: true, err: errors.New("down")},
 			&fakeProvider{name: "b", supports: true, err: errors.New("also down")},
@@ -114,7 +114,7 @@ func TestACachedTracklistSkipsTheChain(t *testing.T) {
 	cache.Put("https://example.com/set", *usable("cached"))
 	provider := &fakeProvider{name: "network", supports: true, result: usable("network")}
 
-	found := Resolve(context.Background(), "https://example.com/set",
+	found, _ := Find(context.Background(), "https://example.com/set",
 		WithCache(cache), WithProviders(provider))
 	if found == nil || found.Source != "cached" {
 		t.Errorf("found = %+v", found)
@@ -130,7 +130,7 @@ func TestRefreshIgnoresTheCache(t *testing.T) {
 	cache.Put("https://example.com/set", *usable("cached"))
 	provider := &fakeProvider{name: "network", supports: true, result: usable("network")}
 
-	found := Resolve(context.Background(), "https://example.com/set",
+	found, _ := Find(context.Background(), "https://example.com/set",
 		WithCache(cache), WithRefresh(), WithProviders(provider))
 	if found == nil || found.Source != "network" {
 		t.Errorf("found = %+v", found)
@@ -392,7 +392,7 @@ func TestALocalFileAlwaysWins(t *testing.T) {
 	writeFile(t, path, "0:00 A - One\n5:00 B - Two\n10:00 C - Three")
 	network := &fakeProvider{name: "network", supports: true, result: usable("network")}
 
-	found := Resolve(context.Background(), path, WithProviders(network))
+	found, _ := Find(context.Background(), path, WithProviders(network))
 	if found == nil || found.Source != "local" {
 		t.Errorf("found = %+v", found)
 	}
