@@ -44,9 +44,9 @@ const (
 	maxComments = 1000
 )
 
-// ErrNoStream is returned when a track offers nothing the speaker can fetch
-// by itself — every format behind HLS, which the firmware will not follow.
-var ErrNoStream = errors.New("soundcloud: no progressive stream for this track")
+// ErrNoStream is returned when a track offers no stream over the protocol
+// asked for: no progressive MP3, or no unencrypted HLS.
+var ErrNoStream = errors.New("soundcloud: no stream of that kind for this track")
 
 // ErrNotATrack is returned for a link that resolves to something other than a
 // single track: a playlist, a user, a station.
@@ -174,10 +174,23 @@ func (raw apiTrack) track() *Track {
 // StreamURL returns a URL the speaker can fetch by itself.
 //
 // Only the progressive MP3 qualifies. SoundCloud offers the same audio over
-// HLS as well, and the firmware will not follow a playlist of segments —
-// playing those needs a local streaming proxy, which this tool does not have.
+// HLS as well, and the firmware will not follow a playlist of segments; for
+// a track that has nothing else, see HLSURL.
 func (c *Client) StreamURL(ctx context.Context, track *Track) (string, error) {
-	chosen, ok := progressive(track.transcodings)
+	return c.locate(ctx, track, "progressive")
+}
+
+// HLSURL returns the address of the track's HLS playlist. Many tracks offer
+// nothing else any more, and the speaker cannot follow one, so this is for
+// something on this machine to convert.
+func (c *Client) HLSURL(ctx context.Context, track *Track) (string, error) {
+	return c.locate(ctx, track, "hls")
+}
+
+// locate asks the API where the track's stream over protocol lives. An
+// encrypted stream reports a protocol of its own, so it never matches.
+func (c *Client) locate(ctx context.Context, track *Track, protocol string) (string, error) {
+	chosen, ok := pick(track.transcodings, protocol)
 	if !ok {
 		return "", ErrNoStream
 	}
@@ -193,12 +206,13 @@ func (c *Client) StreamURL(ctx context.Context, track *Track) (string, error) {
 	return answer.URL, nil
 }
 
-// progressive picks the plain-HTTP MP3, preferring a full track over a snippet.
-func progressive(all []transcoding) (transcoding, bool) {
+// pick returns the first transcoding over protocol, preferring a full track
+// over a snippet. SoundCloud lists the best quality first.
+func pick(all []transcoding, protocol string) (transcoding, bool) {
 	var fallback transcoding
 	var haveFallback bool
 	for _, item := range all {
-		if item.Format.Protocol != "progressive" {
+		if item.Format.Protocol != protocol {
 			continue
 		}
 		if !item.Snipped {

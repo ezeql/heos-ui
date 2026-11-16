@@ -29,6 +29,13 @@ the JSON API it polls, talking to the speakers through goheos:
 - **Playback**: a direct http(s) audio URL plays as-is, a SoundCloud link is
   resolved by the Go client, and anything else goes to yt-dlp if it is
   installed. Then play, pause, stop, next and previous.
+- **HLS-only tracks**: most SoundCloud tracks no longer offer an MP3, only
+  HLS, which the speaker will not follow. ffmpeg converts those on this
+  machine into a constant-bitrate MP3, about fifteen times faster than it
+  plays, and the server hands it to the speaker as an ordinary file under
+  `/stream/` on the same port: known length, byte ranges, so seeking works.
+  This needs ffmpeg on `PATH`, this machine on for as long as the track
+  plays, and the macOS firewall letting the speaker connect in.
 - **Speakers**: pick the target, set the volume, mute, and group or ungroup.
 - **Position and seek**: the position comes from HEOS when it reports one,
   from the speaker's UPnP renderer otherwise (it answers even for URL
@@ -94,9 +101,9 @@ dependencies:
 - `Resolve` — title, artist, artwork, description and the **full** duration
   (`full_duration`, so a preview never shortens the timeline a tracklist is
   lined up against).
-- `StreamURL` — the progressive MP3. SoundCloud offers the same audio over
-  HLS too, and the firmware will not follow a playlist of segments; playing
-  those needs a streaming proxy, which this tool does not have.
+- `StreamURL` — the progressive MP3, when the track still has one.
+- `HLSURL` — the HLS playlist, which is all most tracks offer now. The
+  firmware will not follow it, so the web UI converts it with ffmpeg.
 - `Comments` — the timed comments, paged, capped at 1000. Here `timestamp` is
   the position *within the audio*, unlike yt-dlp's `timestamp`, which is when
   the comment was posted.
@@ -120,10 +127,8 @@ and it is why yt-dlp remains the fallback rather than being deleted.
   entries the Python heoscli wrote.
 - **1001tracklists** as a tracklist source: it needs browser cookies. The
   `Provider` interface is the extension point when it becomes worth it.
-- **A streaming proxy**: transcoding, HLS, live streams, and feeding a
-  playlist one track after another. Without it the web UI only plays what the
-  speaker can fetch by itself, and "play" on a playlist plays its first
-  track.
+- **Sets, live streams, and feeding a playlist one track after another**:
+  only single tracks play, and "play" on a playlist plays its first track.
 - **The audio quality line** in the web UI (the DIDL parse): it shows no line,
   like a speaker that does not answer.
 - **Controlling playback from the command line**: `now` and `tracklist` only

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"sync"
 	"time"
@@ -43,6 +44,10 @@ type Server struct {
 	// Speaker the page picked. Held here rather than in the browser so
 	// every open tab agrees on what the controls are acting on.
 	target string
+	// The HLS conversion the speaker is reading, if any, and the port it
+	// reaches this server on.
+	proxy *proxied
+	port  string
 }
 
 // New builds the server around an already connected goheos client.
@@ -60,6 +65,7 @@ func New(heos *goheos.Client, library *Library, logger *slog.Logger) *Server {
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /{$}", s.index)
+	mux.HandleFunc("GET /stream/{name}", s.stream)
 	mux.HandleFunc("GET /api/state", s.wrap(s.state))
 	mux.HandleFunc("POST /api/play", s.wrap(s.play))
 	mux.HandleFunc("POST /api/identify", s.wrap(s.identify))
@@ -206,6 +212,10 @@ func (s *Server) requestTarget(ctx context.Context, data map[string]any) (target
 
 // Serve runs the web UI until the context ends.
 func (s *Server) Serve(ctx context.Context, addr string) error {
+	if _, port, err := net.SplitHostPort(addr); err == nil {
+		s.port = port
+	}
+	defer s.stopProxy()
 	server := &http.Server{
 		Addr:              addr,
 		Handler:           s.Handler(),

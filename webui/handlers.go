@@ -221,7 +221,7 @@ func (s *Server) play(r *http.Request) (any, error) {
 	if url == "" {
 		return nil, badRequest("a link is required")
 	}
-	resolved, _, err := s.requestTarget(ctx, data)
+	resolved, players, err := s.requestTarget(ctx, data)
 	if err != nil {
 		return nil, err
 	}
@@ -230,7 +230,11 @@ func (s *Server) play(r *http.Request) (any, error) {
 	if err != nil {
 		return nil, badRequest("%s", err.Error())
 	}
-	if err := s.heos.PlayURL(ctx, resolved.playerID, info.streamURL); err != nil {
+	stream, err := s.streamFor(info, resolved.playerID, players)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.heos.PlayURL(ctx, resolved.playerID, stream); err != nil {
 		return nil, badRequest("the speaker would not play it: %s", err.Error())
 	}
 
@@ -239,9 +243,13 @@ func (s *Server) play(r *http.Request) (any, error) {
 	s.title, s.artist, s.image, s.spec = info.title, info.artist, info.image, url
 	s.mu.Unlock()
 
+	route, detail := "direct", "played as a direct URL"
+	if info.hls != "" {
+		route, detail = "proxy", "converted from HLS here: keep this machine on while it plays"
+	}
 	return map[string]any{
-		"route":  "direct",
-		"detail": "played as a direct URL",
+		"route":  route,
+		"detail": detail,
 		"title":  nullable(info.title),
 		"artist": nullable(info.artist),
 		"target": resolved.describe(),
@@ -592,7 +600,7 @@ func (s *Server) playlistPlay(r *http.Request) (any, error) {
 	if len(playlist.Items) == 0 {
 		return nil, badRequest("'%s' is empty", playlist.Name)
 	}
-	resolved, _, err := s.requestTarget(ctx, data)
+	resolved, players, err := s.requestTarget(ctx, data)
 	if err != nil {
 		return nil, err
 	}
@@ -602,7 +610,11 @@ func (s *Server) playlistPlay(r *http.Request) (any, error) {
 	if err != nil {
 		return nil, badRequest("%s", err.Error())
 	}
-	if err := s.heos.PlayURL(ctx, resolved.playerID, info.streamURL); err != nil {
+	stream, err := s.streamFor(info, resolved.playerID, players)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.heos.PlayURL(ctx, resolved.playerID, stream); err != nil {
 		return nil, badRequest("the speaker would not play it: %s", err.Error())
 	}
 	s.mu.Lock()

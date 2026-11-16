@@ -177,6 +177,37 @@ func TestATrackWithoutAProgressiveStreamSaysSo(t *testing.T) {
 	}
 }
 
+// What a track uploaded today looks like: HLS only, an encrypted copy listed
+// first. The plain one is what ffmpeg can read.
+func TestTheHLSPlaylistOfAnHLSOnlyTrack(t *testing.T) {
+	client := serve(t, func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.HasSuffix(r.URL.Path, "/aac_160k"):
+			_, _ = fmt.Fprint(w, `{"url":"https://playback.media-streaming.soundcloud.cloud/x/aac_160k/playlist.m3u8"}`)
+		case strings.HasSuffix(r.URL.Path, "/encrypted"):
+			t.Error("the encrypted transcoding was asked for")
+		default:
+			_, _ = fmt.Fprint(w, strings.ReplaceAll(`{"kind":"track","id":1,"title":"x","duration":1000,`+
+				`"media":{"transcodings":[`+
+				`{"url":"URL/encrypted","preset":"aac_160k","format":{"protocol":"ctr-encrypted-hls","mime_type":"audio/mp4"}},`+
+				`{"url":"URL/aac_160k","preset":"aac_160k","format":{"protocol":"hls","mime_type":"audio/mp4"}},`+
+				`{"url":"URL/abr_sq","preset":"abr_sq","format":{"protocol":"hls","mime_type":"audio/mpegurl"}}`+
+				`]}}`, "URL", "http://"+r.Host))
+		}
+	})
+	track, err := client.Resolve(context.Background(), "https://soundcloud.com/x/y")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, streamErr := client.StreamURL(context.Background(), track); !errors.Is(streamErr, ErrNoStream) {
+		t.Errorf("StreamURL err = %v, want ErrNoStream", streamErr)
+	}
+	playlist, err := client.HLSURL(context.Background(), track)
+	if err != nil || !strings.HasSuffix(playlist, "/aac_160k/playlist.m3u8") {
+		t.Errorf("HLSURL = %q, %v", playlist, err)
+	}
+}
+
 // A snipped transcoding is a 30-second preview; the full one is preferred
 // whatever order they arrive in.
 func TestAFullStreamBeatsASnippet(t *testing.T) {
@@ -187,11 +218,11 @@ func TestAFullStreamBeatsASnippet(t *testing.T) {
 	for i := range all {
 		all[i].Format.Protocol = "progressive"
 	}
-	chosen, ok := progressive(all)
+	chosen, ok := pick(all, "progressive")
 	if !ok || chosen.URL != "full" {
 		t.Errorf("chose %q, want full", chosen.URL)
 	}
-	if chosen, ok := progressive(all[:1]); !ok || chosen.URL != "snip" {
+	if chosen, ok := pick(all[:1], "progressive"); !ok || chosen.URL != "snip" {
 		t.Errorf("a snippet alone should still be offered, got %q", chosen.URL)
 	}
 }
