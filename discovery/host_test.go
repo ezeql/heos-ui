@@ -103,7 +103,7 @@ func TestNoTemporaryFileIsLeftBehind(t *testing.T) {
 	if err := Remember("192.168.101.6"); err != nil {
 		t.Fatal(err)
 	}
-	entries, err := os.ReadDir(filepath.Dir(ConfigPath()))
+	entries, err := os.ReadDir(filepath.Dir(configPath()))
 	if err != nil {
 		t.Fatal(err)
 	}

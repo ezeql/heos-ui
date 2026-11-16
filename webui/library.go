@@ -14,11 +14,12 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 	"slices"
 	"sort"
 	"strings"
 	"sync"
+
+	"github.com/ezeql/heoscli-go/internal/config"
 )
 
 // PlaylistItem is one entry. URL is what gets played; the rest is for
@@ -80,21 +81,12 @@ type Library struct {
 	loaded    bool
 }
 
-// DefaultLibraryPath returns the shared heoscli playlists file.
-func DefaultLibraryPath() string {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return filepath.Join(".", "playlists.json")
-	}
-	return filepath.Join(home, ".config", "heoscli", "playlists.json")
-}
-
 // NewLibrary opens a library backed by the given file (the shared default
 // when empty). A corrupt file must not make every command fail; it starts
 // empty and the next save rewrites it.
 func NewLibrary(path string) *Library {
 	if path == "" {
-		path = DefaultLibraryPath()
+		path = config.Path("playlists.json")
 	}
 	return &Library{path: path, playlists: map[string]*Playlist{}}
 }
@@ -144,18 +136,7 @@ func (l *Library) save() {
 	if err != nil {
 		return
 	}
-	if err := os.MkdirAll(filepath.Dir(l.path), 0o750); err != nil {
-		return
-	}
-	// Write to a sibling and replace: a crash mid-write would otherwise
-	// leave a half-written file where the playlists used to be.
-	temporary := l.path + ".tmp"
-	if err := os.WriteFile(temporary, raw, 0o600); err != nil {
-		return
-	}
-	if err := os.Rename(temporary, l.path); err != nil {
-		_ = os.Remove(temporary)
-	}
+	_ = config.WriteAtomic(l.path, raw)
 }
 
 // All returns every playlist, sorted by name.
