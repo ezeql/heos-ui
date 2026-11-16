@@ -51,7 +51,7 @@ func defaultsOptions() options {
 	}
 }
 
-// Option configures Resolve and Find.
+// Option configures Find.
 type Option func(*options)
 
 // WithCache reads and writes the given cache.
@@ -91,17 +91,6 @@ func defaultProviders(extract extractor) []Provider {
 		&DescriptionProvider{extract: extract},
 		&CommentsProvider{extract: extract},
 	}
-}
-
-// Resolve finds a tracklist for this set, or nil if nothing has one. It never
-// fails: a set with no tracklist, an unreachable source and a malformed page
-// all come back as nil.
-func Resolve(ctx context.Context, spec string, opts ...Option) *Tracklist {
-	o := defaultsOptions()
-	for _, opt := range opts {
-		opt(&o)
-	}
-	return resolve(ctx, spec, &o)
 }
 
 func resolve(ctx context.Context, spec string, o *options) *Tracklist {
