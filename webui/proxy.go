@@ -211,17 +211,30 @@ func (s *Server) stream(w http.ResponseWriter, r *http.Request) {
 // it: the local address on the route there. With a VPN or a second network
 // up, the interface list alone cannot say which one that is.
 func (s *Server) addressFor(speakerIP string) (string, error) {
-	// Dialing UDP sends nothing; it only asks the kernel for the route.
-	conn, err := net.Dial("udp4", net.JoinHostPort(speakerIP, "1255"))
+	local, err := LocalIP(speakerIP)
 	if err != nil {
-		return "", fmt.Errorf("no route to the speaker: %w", err)
+		return "", err
+	}
+	if s.port == "" {
+		return "", errors.New("this server's own port is unknown")
+	}
+	return net.JoinHostPort(local, s.port), nil
+}
+
+// LocalIP is this machine's address on the route to peer: the one a device
+// on that network reaches it at.
+func LocalIP(peer string) (string, error) {
+	// Dialing UDP sends nothing; it only asks the kernel for the route.
+	conn, err := net.Dial("udp4", net.JoinHostPort(peer, "1255"))
+	if err != nil {
+		return "", fmt.Errorf("no route to %s: %w", peer, err)
 	}
 	defer func() { _ = conn.Close() }()
 	local, ok := conn.LocalAddr().(*net.UDPAddr)
-	if !ok || s.port == "" {
-		return "", errors.New("this server's own address is unknown")
+	if !ok {
+		return "", errors.New("no local address on the route")
 	}
-	return net.JoinHostPort(local.IP.String(), s.port), nil
+	return local.IP.String(), nil
 }
 
 // streamFor is what to hand the speaker: the link itself, or, for an HLS
