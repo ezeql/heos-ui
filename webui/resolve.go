@@ -102,7 +102,7 @@ func soundcloudResolve(ctx context.Context, spec string) (*trackInfo, error) {
 // ytdlpResolve asks yt-dlp for the direct audio URL and metadata. Prefers a
 // progressive http format the firmware can fetch on its own.
 func ytdlpResolve(ctx context.Context, spec string) (*trackInfo, error) {
-	binary := os.Getenv("HEOSCLI_YTDLP")
+	binary := os.Getenv("HEOS_UI_YTDLP")
 	if binary == "" {
 		found, err := exec.LookPath("yt-dlp")
 		if err != nil {
