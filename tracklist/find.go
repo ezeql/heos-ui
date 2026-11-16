@@ -3,7 +3,7 @@ package tracklist
 import (
 	"context"
 
-	"github.com/ezeql/heoscli-go/soundcloud"
+	"github.com/ezeql/heos-ui/soundcloud"
 )
 
 // alignedToAudio names sources whose timestamps already refer to this exact

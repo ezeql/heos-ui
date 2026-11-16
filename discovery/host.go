@@ -15,7 +15,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ezeql/heoscli-go/internal/config"
+	"github.com/ezeql/heos-ui/internal/config"
 )
 
 // searchTimeout is how long a search waits for SSDP answers. The M-SEARCH

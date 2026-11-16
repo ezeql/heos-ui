@@ -7,7 +7,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/ezeql/heoscli-go/position"
+	"github.com/ezeql/heos-ui/position"
 )
 
 // Every open tab polls /api/state on its own goroutine while seek

@@ -22,8 +22,8 @@ import (
 
 	"github.com/ezeql/goheos"
 
-	"github.com/ezeql/heoscli-go/discovery"
-	"github.com/ezeql/heoscli-go/webui"
+	"github.com/ezeql/heos-ui/discovery"
+	"github.com/ezeql/heos-ui/webui"
 )
 
 func main() {
@@ -47,7 +47,7 @@ func main() {
 	defer func() { _ = heos.Disconnect() }()
 
 	server := webui.New(heos, nil, logger)
-	fmt.Printf("heoscli ui (go) — http://localhost:%d — speaker %s\n", *port, host)
+	fmt.Printf("heos-ui — http://localhost:%d — speaker %s\n", *port, host)
 	if err := server.Serve(ctx, fmt.Sprintf(":%d", *port)); err != nil {
 		log.Fatal(err)
 	}

@@ -13,7 +13,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/ezeql/heoscli-go/soundcloud"
+	"github.com/ezeql/heos-ui/soundcloud"
 )
 
 // minCommentLength: comments that mark a track change are the ones naming it.

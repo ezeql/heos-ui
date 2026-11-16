@@ -10,7 +10,7 @@ package tracklist
 import (
 	"context"
 
-	"github.com/ezeql/heoscli-go/soundcloud"
+	"github.com/ezeql/heos-ui/soundcloud"
 )
 
 // scClient is shared so the scraped client_id is paid for once per process.

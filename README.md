@@ -1,4 +1,4 @@
-# heoscli-go
+# heos-ui
 
 A command-line tool and web UI for Denon/HEOS speakers, built on
 [goheos](https://github.com/ezeql/goheos), the Go library for the HEOS protocol
@@ -34,7 +34,7 @@ the JSON API it polls, talking to the speakers through goheos:
   from the speaker's UPnP renderer otherwise (it answers even for URL
   streams), and from a clock started at play as the last resort. Seeking goes
   over UPnP, because the HEOS protocol has no seek at all.
-- **Playlists**: heoscli's own lists of links, unrelated to HEOS playlists,
+- **Playlists**: this tool's own lists of links, unrelated to HEOS playlists,
   in `~/.config/heoscli/playlists.json`. Same file and schema as the Python
   tool, so both can share it.
 - **HEOS account**: sign in and out.

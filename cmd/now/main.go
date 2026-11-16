@@ -24,9 +24,9 @@ import (
 
 	"github.com/ezeql/goheos"
 
-	"github.com/ezeql/heoscli-go/discovery"
-	"github.com/ezeql/heoscli-go/position"
-	"github.com/ezeql/heoscli-go/tracklist"
+	"github.com/ezeql/heos-ui/discovery"
+	"github.com/ezeql/heos-ui/position"
+	"github.com/ezeql/heos-ui/tracklist"
 )
 
 func pickPlayer(players map[int]*goheos.Player, name string) *goheos.Player {
