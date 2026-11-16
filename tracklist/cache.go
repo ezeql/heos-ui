@@ -20,7 +20,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ezeql/heoscli-go/internal/config"
+	"github.com/ezeql/heos-ui/internal/config"
 )
 
 const (

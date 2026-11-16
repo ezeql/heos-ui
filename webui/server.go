@@ -13,7 +13,7 @@ import (
 
 	"github.com/ezeql/goheos"
 
-	"github.com/ezeql/heoscli-go/position"
+	"github.com/ezeql/heos-ui/position"
 )
 
 //go:embed static/index.html

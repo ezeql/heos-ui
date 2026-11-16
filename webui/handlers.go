@@ -8,7 +8,7 @@ import (
 
 	"github.com/ezeql/goheos"
 
-	"github.com/ezeql/heoscli-go/position"
+	"github.com/ezeql/heos-ui/position"
 )
 
 // state answers the poll the page lives on: players, groups, the acting

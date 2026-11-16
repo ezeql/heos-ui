@@ -1,4 +1,4 @@
-module github.com/ezeql/heoscli-go
+module github.com/ezeql/heos-ui
 
 go 1.27.0
 

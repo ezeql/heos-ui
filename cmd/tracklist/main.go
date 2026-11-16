@@ -21,7 +21,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/ezeql/heoscli-go/tracklist"
+	"github.com/ezeql/heos-ui/tracklist"
 )
 
 func main() {

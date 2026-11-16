@@ -2,7 +2,7 @@ package webui
 
 // User-created playlists, stored locally.
 //
-// These are heoscli's own lists, unrelated to HEOS playlists (sid=1025),
+// These are this tool's own lists, unrelated to HEOS playlists (sid=1025),
 // which live on the speaker and need an account. A list here is just an
 // ordered set of links, so anything playable can go in.
 //
@@ -19,7 +19,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/ezeql/heoscli-go/internal/config"
+	"github.com/ezeql/heos-ui/internal/config"
 )
 
 // PlaylistItem is one entry. URL is what gets played; the rest is for
