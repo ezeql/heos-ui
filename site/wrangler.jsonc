@@ -1,0 +1,10 @@
+// heosui.chech.app: the static page in public/, served by Cloudflare.
+// Deploy from this folder with `npx wrangler deploy`; the custom domain
+// creates its own DNS record and certificate on the chech.app zone.
+{
+  "name": "heos-ui-site",
+  "compatibility_date": "2026-11-01",
+  "assets": { "directory": "./public" },
+  "routes": [{ "pattern": "heosui.chech.app", "custom_domain": true }],
+  "workers_dev": false
+}

@@ -12,7 +12,7 @@ tmp_dir = "tmp"
   # go:embed — editing the frontend needs the same rebuild the backend does.
   include_ext = ["go", "html"]
 
-  exclude_dir = ["tmp", "dist", ".git", ".github"]
+  exclude_dir = ["tmp", "dist", ".git", ".github", "site"]
 
   # Tests do not go into the binary, so a test edit is not a reason to
   # restart the speaker connection.
