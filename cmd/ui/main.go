@@ -8,6 +8,9 @@
 // The HEOS host defaults to the one cached in
 // ~/.config/heoscli/config.toml, and when that one does not answer the
 // speaker is discovered on the local network instead.
+//
+// This machine is served as is. Any other device needs the link printed at
+// startup, opened once: it carries the key in ~/.config/heoscli/heos-ui.key.
 package main
 
 import (
@@ -48,6 +51,15 @@ func main() {
 
 	server := webui.New(heos, nil, logger)
 	fmt.Printf("heos-ui — http://localhost:%d — speaker %s\n", *port, host)
+	// Other devices get in with a key, once, through this link.
+	if key, err := webui.LoadKey(); err != nil {
+		log.Printf("no key for other devices, so only this machine is served: %v", err)
+	} else {
+		server.SetKey(key)
+		if ip, err := webui.LocalIP(host); err == nil {
+			fmt.Printf("on a phone or another computer: http://%s:%d/?key=%s\n", ip, *port, key)
+		}
+	}
 	if err := server.Serve(ctx, fmt.Sprintf(":%d", *port)); err != nil {
 		log.Fatal(err)
 	}

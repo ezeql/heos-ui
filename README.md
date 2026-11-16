@@ -15,6 +15,9 @@ brew install ezeql/personal/heos-ui
 heos-ui    # then open http://localhost:8080
 ```
 
+On a phone or another computer, open the link `heos-ui` prints when it
+starts, once (see **Web UI** for why).
+
 The formula installs the three commands below as `heos-ui`, `heos-now` and
 `heos-tracklist`, with ffmpeg, which most SoundCloud tracks now need (see
 **Web UI**). yt-dlp is optional: `brew install yt-dlp` for links from other
@@ -67,9 +70,23 @@ the JSON API it polls, talking to the speakers through goheos:
   tool, so both can share it.
 - **HEOS account**: sign in and out.
 
-The server listens on every interface with no authentication: anyone on the
-local network can drive the speakers. Requests from other sites open in the
-same browser are rejected (403), so a web page you visit cannot.
+The server listens on every interface, because phones on the network are a
+reason to run it and the speaker fetches converted tracks from it. Who gets in:
+
+- **This machine** is served as is.
+- **Any other device** needs the key, once. `heos-ui` prints the link at
+  startup (`http://<this machine>:8080/?key=…`); opening it sets a cookie and
+  drops the key from the address bar. The key lives in
+  `~/.config/heoscli/heos-ui.key`; delete that file and restart to lock every
+  device out again.
+- **The `Host` header** has to name this machine: an IP address, `localhost`
+  or its own hostname. A site that points its domain at your machine (DNS
+  rebinding) is refused, which is what makes letting this machine in without
+  a key safe.
+- **Other sites** open in the same browser can't send requests (403).
+- **Request bodies** over 64 KiB are refused (413).
+- **`/stream/`**, which the speaker reads, is the one path outside all of
+  this: the speaker sends no cookie, and each stream's id is unguessable.
 
 ## Tracklists
 
@@ -216,3 +233,7 @@ git ignores:
 ```sh
 go work init . ../goheos
 ```
+
+## License
+
+Apache License 2.0; see [LICENSE](LICENSE).

@@ -48,6 +48,8 @@ type Server struct {
 	// reaches this server on.
 	proxy *proxied
 	port  string
+	// key lets other devices in; empty, only this machine is (guard.go).
+	key string
 }
 
 // New builds the server around an already connected goheos client.
@@ -65,7 +67,6 @@ func New(heos *goheos.Client, library *Library, logger *slog.Logger) *Server {
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /{$}", s.index)
-	mux.HandleFunc("GET /stream/{name}", s.stream)
 	mux.HandleFunc("GET /api/state", s.wrap(s.state))
 	mux.HandleFunc("POST /api/play", s.wrap(s.play))
 	mux.HandleFunc("POST /api/identify", s.wrap(s.identify))
@@ -88,7 +89,14 @@ func (s *Server) Handler() http.Handler {
 	// Every POST drives the speakers or the HEOS account; without this, any
 	// site open in the same browser could send them. Same-origin pages and
 	// non-browser clients (no Origin, no Sec-Fetch-Site) still get through.
-	return http.NewCrossOriginProtection().Handler(mux)
+	guarded := s.guard(http.NewCrossOriginProtection().Handler(mux))
+
+	// The speaker's stream is the one route outside the guard: it sends no
+	// cookie, and its id is unguessable already.
+	root := http.NewServeMux()
+	root.HandleFunc("GET /stream/{name}", s.stream)
+	root.Handle("/", guarded)
+	return root
 }
 
 func (s *Server) index(w http.ResponseWriter, _ *http.Request) {
