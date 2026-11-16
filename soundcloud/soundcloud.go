@@ -97,7 +97,6 @@ type Track struct {
 	Artwork     string
 	Description string
 	Duration    float64 // seconds
-	Permalink   string
 
 	transcodings []transcoding
 }
@@ -129,7 +128,6 @@ type apiTrack struct {
 	Duration     int64  `json:"duration"`      // milliseconds
 	FullDuration int64  `json:"full_duration"` // milliseconds, when a preview is served
 	ArtworkURL   string `json:"artwork_url"`
-	PermalinkURL string `json:"permalink_url"`
 	User         struct {
 		Username string `json:"username"`
 	} `json:"user"`
@@ -169,7 +167,6 @@ func (raw apiTrack) track() *Track {
 		Artwork:      strings.Replace(raw.ArtworkURL, "-large.", "-t500x500.", 1),
 		Description:  raw.Description,
 		Duration:     float64(milliseconds) / 1000,
-		Permalink:    raw.PermalinkURL,
 		transcodings: raw.Media.Transcodings,
 	}
 }
