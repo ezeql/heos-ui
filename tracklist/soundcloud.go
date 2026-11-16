@@ -10,9 +10,10 @@ package tracklist
 
 import (
 	"context"
-	"net/url"
 	"sort"
 	"strings"
+
+	"github.com/ezeql/heoscli-go/soundcloud"
 )
 
 // minCommentLength: comments that mark a track change are the ones naming it.
@@ -22,15 +23,6 @@ const minCommentLength = 4
 // bucketSeconds: two people naming the same drop should not become two cues.
 // One per bucket.
 const bucketSeconds = 30.0
-
-func isSoundcloud(spec string) bool {
-	parsed, err := url.Parse(spec)
-	if err != nil {
-		return false
-	}
-	host := strings.ToLower(parsed.Hostname())
-	return host == "soundcloud.com" || strings.HasSuffix(host, ".soundcloud.com")
-}
 
 // DescriptionProvider reads the tracklist the uploader typed into the
 // description.
@@ -42,7 +34,7 @@ type DescriptionProvider struct {
 func (*DescriptionProvider) Name() string { return "soundcloud-description" }
 
 // Supports reports whether spec is a SoundCloud link.
-func (*DescriptionProvider) Supports(spec string) bool { return isSoundcloud(spec) }
+func (*DescriptionProvider) Supports(spec string) bool { return soundcloud.Is(spec) }
 
 // Fetch parses the upload's description.
 func (p *DescriptionProvider) Fetch(ctx context.Context, spec string) (*Tracklist, error) {
@@ -70,7 +62,7 @@ type CommentsProvider struct {
 func (*CommentsProvider) Name() string { return "soundcloud-comments" }
 
 // Supports reports whether spec is a SoundCloud link.
-func (*CommentsProvider) Supports(spec string) bool { return isSoundcloud(spec) }
+func (*CommentsProvider) Supports(spec string) bool { return soundcloud.Is(spec) }
 
 // Fetch turns comments that name a track into a tracklist.
 func (p *CommentsProvider) Fetch(ctx context.Context, spec string) (*Tracklist, error) {
